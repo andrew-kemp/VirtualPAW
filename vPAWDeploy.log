@@ -552,3 +552,4 @@
 2025-06-10 19:12:55 [INFO] Policy 'Priv - Restrict Access to cPAW only' updated to exclude AppId 2b55074b-80ea-40d6-a32a-f1a57118afb2.
 2025-06-10 19:12:55 [INFO] Script completed. Please verify CA exclusions and grant admin consent for [Storage Account] vpawstorage.file.core.windows.net in Azure Portal.
 2025-06-10 19:12:55 [INFO] Conditional Access exclusion complete.
+2025-06-10 19:29:39 [INFO] Script execution complete.

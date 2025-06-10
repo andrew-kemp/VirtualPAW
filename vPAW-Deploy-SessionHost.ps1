@@ -70,6 +70,27 @@ function Write-Log {
 }
 Write-Log "Script started by $env:USERNAME"
 
+
+#############################
+#   PAuse with Timeout      #
+#############################
+function Pause-With-Timeout {
+    param (
+        [int]$Seconds = 10
+    )
+    Write-Host "Press Enter to continue, or wait $Seconds seconds..."
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($sw.Elapsed.TotalSeconds -lt $Seconds) {
+        if ([System.Console]::KeyAvailable) {
+            $key = [System.Console]::ReadKey($true)
+            if ($key.Key -eq 'Enter') { break }
+        }
+        Start-Sleep -Milliseconds 100
+    }
+    Clear-Host
+}
+
+
 #############################
 #   Prompting Functions     #
 #############################
@@ -168,7 +189,7 @@ function Select-SessionHostBicepFile {
         }
     }
 }
-
+Pause-With-Timeout
 #############################
 #  Mask Sensitive Args      #
 #############################
@@ -187,7 +208,7 @@ function Mask-SensitiveArgs {
     }
     return $masked
 }
-
+Pause-With-Timeout
 #############################
 #   Load Previous Session   #
 #############################
@@ -233,7 +254,7 @@ if (Test-Path $confFile) {
         Write-Log "Failed to parse $confFile"
     }
 }
-
+Pause-With-Timeout
 #############################
 #   Prepare Environment     #
 #############################
@@ -268,7 +289,7 @@ if (-not (Get-Module -ListAvailable -Name Az.Accounts)) {
     exit 1
 }
 Import-Module Az.Accounts -ErrorAction SilentlyContinue
-
+Pause-With-Timeout
 #############################
 #   Azure CLI & Graph Login #
 #############################
@@ -324,7 +345,7 @@ if (-not $graphLoggedIn) {
     Write-Host "Connected to Microsoft Graph as $($mgContext.Account)" -ForegroundColor Cyan
     Write-Log "Connected to Microsoft Graph as $($mgContext.Account)"
 }
-
+Pause-With-Timeout
 #############################
 # Subscription/Resource Sel #
 #############################
@@ -379,7 +400,7 @@ if (-not $skipPrompts) {
     Select-AzSubscription -SubscriptionId $chosenSub.id
     Write-Log "Using settings from ${confFile}: Subscription=$($chosenSub.name), ResourceGroup=$resourceGroup, ..."
 }
-
+Pause-With-Timeout
 #############################
 #  Session Host User Input  #
 #############################
@@ -396,7 +417,7 @@ for ($i = 1; $i -le $hostCount; $i++) {
     $upn = Prompt-RequiredParam "Enter the user's UPN (userUPN): "
     $userDetails += [PSCustomObject]@{ FirstName = $firstName; LastName = $lastName; UPN = $upn }
 }
-
+Pause-With-Timeout
 #############################
 #   Admin & DNS Inputs      #
 #############################
@@ -413,7 +434,7 @@ $dns2 = Prompt-OptionalParam "Enter the secondary DNS server (dns2, leave blank 
 
 Write-Host "=== SESSION HOST PREP SCRIPT URL ===" -ForegroundColor Yellow
 $sessionHostPrepScriptUrl = Prompt-OptionalParam "Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl)" "https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1"
-
+Pause-With-Timeout
 #############################
 # Hostpool Registration Key #
 #############################
@@ -435,7 +456,7 @@ try {
     Write-Log "Failed to create registration key: $_"
     $hostPoolRegistrationInfoToken = Prompt-RequiredParam "Enter the registration key for the AVD host pool (hostPoolRegistrationInfoToken): "
 }
-
+Pause-With-Timeout
 #############################
 #      Summary Output       #
 #############################
@@ -460,7 +481,7 @@ foreach ($u in $userDetails) {
 }
 Write-Host "===========================" -ForegroundColor Magenta
 Write-Log "Summary displayed"
-
+Pause-With-Timeout
 #############################
 #  Group Assignment Prompt  #
 #############################
@@ -473,7 +494,7 @@ Write-Host "  4) Neither"
 Write-Host "Select an option (1-4) [Default: 1]:" -ForegroundColor Green -NoNewline
 $groupChoice = Read-Host
 if ([string]::IsNullOrWhiteSpace($groupChoice)) { $groupChoice = "1" }
-
+Pause-With-Timeout
 #############################
 #    Deployment Prompt      #
 #############################
@@ -536,7 +557,7 @@ if ($deployNow -eq "y") {
             }
         }
     }
-
+Pause-With-Timeout
     #############################
     # Assign User to SessionHost#
     #############################
@@ -557,6 +578,7 @@ if ($deployNow -eq "y") {
         Write-Log ("Failed to assign {0} to session host {1}: {2}" -f $user.UPN, $sessionHostName, $errMsg)
     }
 }
+Pause-With-Timeout
 #############################
 #       Add to Groups       #
 #############################
@@ -613,17 +635,18 @@ foreach ($user in $userDetails) {
     Write-Log "Deployment skipped by user"
     exit 0
 }
- #############################
+Pause-With-Timeout
+##############################
 #      VM Auto-Shutdown     #
 #############################
 Write-Banner "Configure VM Auto-Shutdown"
 foreach ($user in $userDetails) {
     $vmName = "$sessionHostPrefix-$($user.FirstName)$($user.LastName)"
     $upn = $user.UPN
-     Write-Host "Setting auto-shutdown for VM: $vmName (Notify: $upn)" -ForegroundColor Yellow
-     az vm auto-shutdown --resource-group $resourceGroup --name $vmName --time 18:00 --email $upn --webhook "" 2>&1 | Write-Host
-    }
-
+    Write-Host "Setting auto-shutdown for VM: $vmName (Notify: $upn)" -ForegroundColor Yellow
+    az vm auto-shutdown --resource-group $resourceGroup --name $vmName --time 1800 --email $upn 2>&1 | Write-Host
+}
+Pause-With-Timeout
 #############################
 # Set Device Extension Attributes
 #############################
@@ -639,7 +662,7 @@ foreach ($device in $devices) {
     Update-MgDevice -DeviceId $device.Id -BodyParameter $params
 }
 Write-Log "Device extension attributes set for all devices with displayName starting with '$resourceGroup'"
-
+Pause-With-Timeout
 #############################
 # Invalidate Reg. Key/Save  #
 #############################
@@ -659,31 +682,8 @@ try {
     Write-Log "Failed to invalidate host pool registration key: $errMsg"
 }
 
-Write-Host "Saving session parameters to $confFile..." -ForegroundColor Yellow
-try {
-    $saveParams = @{
-        SubscriptionName = $chosenSub.name
-        SubscriptionId = $chosenSub.id
-        ResourceGroup = $resourceGroup
-        ResourceGroupLocation = $resourceGroupLocation
-        HostPoolName = $hostPoolName
-        VNetName = $vNetName
-        SubnetName = $subnetName
-        DefaultPrefix = $sessionHostPrefix
-        BicepTemplateFile = $bicepTemplateFile
-        vPAWUsersGroupDisplayName = $vPAWUsersGroupDisplayName
-        vPAWUsersGroupObjectId = $vPAWUsersGroupObjectId
-        vPAWAdminsGroupDisplayName = $vPAWAdminsGroupDisplayName
-        vPAWAdminsGroupObjectId = $vPAWAdminsGroupObjectId
-    }
-    $saveParams | ConvertTo-Json | Set-Content $confFile
-    Write-Host "Session parameters saved to $confFile." -ForegroundColor Green
-    Write-Log "Session parameters saved to $confFile"
-} catch {
-    $errMsg = $_.Exception.Message
-    Write-Host "Failed to save session parameters: $errMsg" -ForegroundColor Red
-    Write-Log "Failed to save session parameters: $errMsg"
-}
+# NOTE: This script only reads from vPAWconf.inf and never writes or modifies it.
+# The code that would save back to the .inf file has been removed as per requirements.
 
 Write-Host "`n===== vPAW Session Host deployment workflow completed =====" -ForegroundColor Magenta
 Write-Log "Workflow completed"

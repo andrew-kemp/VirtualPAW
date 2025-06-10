@@ -692,3 +692,10 @@
 2025-06-10 19:14:04 - Summary displayed
 2025-06-10 19:14:40 - User chose to deploy: y
 2025-06-10 19:14:42 - Deploying session host for andrew@kemponline.co.uk
+2025-06-10 19:29:26 - Deployment command executed for andrew@kemponline.co.uk successfully
+2025-06-10 19:29:28 - Assigned andrew@kemponline.co.uk to session host vPAW-AndrewKemp using Update-AzWvdSessionHost
+2025-06-10 19:29:35 - Failed to add andrew@kemponline.co.uk to vPAW Users group: Cannot bind argument to parameter 'GroupId' because it is an empty string.
+2025-06-10 19:29:37 - Device extension attributes set for all devices with displayName starting with 'vPAW'
+2025-06-10 19:29:39 - Host pool registration key invalidated
+2025-06-10 19:29:39 - Session parameters saved to vPAWconf.inf
+2025-06-10 19:29:39 - Workflow completed
