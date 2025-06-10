@@ -617,31 +617,50 @@ Write-Host "--------------------------------------" -ForegroundColor Magenta
 Write-Host "Storage App Conditional Access Exclusion" -ForegroundColor Magenta
 Write-Host "--------------------------------------" -ForegroundColor Magenta
 
+# Make sure $storageAccountName is set before this block!
+# Ensure $storageAccountName is set before this
+$expectedPrefix = "[Storage Account] $storageAccountName.file.core.windows.net"
 $applications = @(Get-MgApplication -Filter "startswith(displayName, '[Storage Account]')" | Select-Object DisplayName, AppId, Id)
 $selectedApp = $null
+
 if ($applications.Count -eq 0) {
     Write-Host "No applications found starting with '[Storage Account]'." -ForegroundColor Red
     Write-Log "No applications found starting with '[Storage Account]'." "ERROR"
     exit
 }
 
-$expectedPrefix = "[Storage Account] $storageAccountName"
-$selectedApp = $applications | Where-Object { $_.DisplayName -like "$expectedPrefix*" }
-if ($selectedApp) {
+# Find exact match for [Storage Account] $storageAccountName.file.core.windows.net
+$matchingApps = $applications | Where-Object {
+    $_.DisplayName.Trim().ToLower() -eq $expectedPrefix.ToLower()
+}
+
+if ($matchingApps.Count -eq 1) {
+    $selectedApp = $matchingApps[0]
     Write-Host "Automatically selected storage app: $($selectedApp.DisplayName) (AppId: $($selectedApp.AppId))" -ForegroundColor Green
     Write-Log "Automatically selected storage app: $($selectedApp.DisplayName) (AppId: $($selectedApp.AppId))"
+} elseif ($matchingApps.Count -gt 1) {
+    Write-Host "Multiple storage apps found for '$expectedPrefix'. Please select:" -ForegroundColor Yellow
+    for ($i = 0; $i -lt $matchingApps.Count; $i++) {
+        Write-Host "$($i+1): $($matchingApps[$i].DisplayName) | AppId: $($matchingApps[$i].AppId) | ObjectId: $($matchingApps[$i].Id)" -ForegroundColor Yellow
+    }
+    $selection = Read-Host "`nEnter the number of the application you want to select"
+    if ($selection -match '^\d+$' -and $selection -ge 1 -and $selection -le $matchingApps.Count) {
+        $selectedApp = $matchingApps[$selection - 1]
+        Write-Log "User selected storage app: $($selectedApp.DisplayName) (AppId: $($selectedApp.AppId))"
+    }
 } else {
-    Write-Host "No exact match for '$expectedDisplayName'. Please select from the available '[Storage Account]' apps:" -ForegroundColor Yellow
-    Write-Log "No exact match for '$expectedDisplayName'. Prompting user for selection."
+    # No match for "[Storage Account] $storageAccountName.file.core.windows.net", let user pick from all Storage Account apps
+    Write-Host "No app found starting with '$expectedPrefix'. Please select from all '[Storage Account]' apps:" -ForegroundColor Yellow
     for ($i = 0; $i -lt $applications.Count; $i++) {
         Write-Host "$($i+1): $($applications[$i].DisplayName) | AppId: $($applications[$i].AppId) | ObjectId: $($applications[$i].Id)" -ForegroundColor Yellow
     }
-    $selection = Read-Host "`nEnter the number of the application you want to select" -ForegroundColor Green
+    $selection = Read-Host "`nEnter the number of the application you want to select"
     if ($selection -match '^\d+$' -and $selection -ge 1 -and $selection -le $applications.Count) {
         $selectedApp = $applications[$selection - 1]
         Write-Log "User selected storage app: $($selectedApp.DisplayName) (AppId: $($selectedApp.AppId))"
     }
 }
+
 if (-not $selectedApp) {
     Write-Host "No storage app selected." -ForegroundColor Red
     Write-Log "No storage app selected." "ERROR"
@@ -654,8 +673,6 @@ Write-Host "AppId stored in `$CAExclude: $CAExclude" -ForegroundColor Cyan
 Write-Host "ObjectId: $ObjectId" -ForegroundColor Cyan
 Write-Log "Storage App selected: $($selectedApp.DisplayName) AppId: $CAExclude ObjectId: $ObjectId"
 
-Write-Host "Reviewing Conditional Access policies..." -ForegroundColor Cyan
-Write-Log "Reviewing Conditional Access policies..."
 $policies = Get-MgIdentityConditionalAccessPolicy
 $filteredPolicies = $policies | Where-Object {
     $_.Conditions.Applications.IncludeApplications -contains "All" -and
