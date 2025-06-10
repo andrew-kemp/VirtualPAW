@@ -41,9 +41,7 @@ function Write-Banner {
 }
 
 #############################
-#                           #
 #   Config and Log Setup    #
-#                           #
 #############################
 Write-Banner "Config and Log Setup"
 $confFile = "vPAWconf.inf"
@@ -65,7 +63,6 @@ $fields = @(
     @{Name="vPAWAdminsGroupObjectId";Prompt="vPAW Admins group objectId";Var="vPAWAdminsGroupObjectId"}
 )
 
-# --- Logging Function ---
 function Write-Log {
     param ([string]$Message)
     $timestamp = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
@@ -74,9 +71,7 @@ function Write-Log {
 Write-Log "Script started by $env:USERNAME"
 
 #############################
-#                           #
 #   Prompting Functions     #
-#                           #
 #############################
 Write-Banner "Prompting Functions"
 function Prompt-RequiredParam([string]$PromptText) {
@@ -118,9 +113,7 @@ function Prompt-OptionalParam([string]$PromptText, [string]$DefaultValue) {
 }
 
 #############################
-#                           #
 #  Bicep File Selection     #
-#                           #
 #############################
 Write-Banner "Bicep File Selection"
 function Select-SessionHostBicepFile {
@@ -177,9 +170,7 @@ function Select-SessionHostBicepFile {
 }
 
 #############################
-#                           #
 #  Mask Sensitive Args      #
-#                           #
 #############################
 Write-Banner "Mask Sensitive Args"
 function Mask-SensitiveArgs {
@@ -198,9 +189,7 @@ function Mask-SensitiveArgs {
 }
 
 #############################
-#                           #
 #   Load Previous Session   #
-#                           #
 #############################
 Write-Banner "Load Previous Session"
 $skipPrompts = $false
@@ -246,9 +235,7 @@ if (Test-Path $confFile) {
 }
 
 #############################
-#                           #
 #   Prepare Environment     #
-#                           #
 #############################
 Write-Banner "Prepare Environment"
 Write-Host "Preparing environment: checking modules and connecting to services..." -ForegroundColor Cyan
@@ -264,6 +251,11 @@ foreach ($mod in $modules) {
         Write-Log "Installed missing module $mod"
         exit 0
     }
+if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Groups)) {
+    Write-Host "Installing Microsoft.Graph.Groups module..." -ForegroundColor Yellow
+    Install-Module Microsoft.Graph.Groups -Scope CurrentUser -Force
+}
+Import-Module Microsoft.Graph.Groups -Force
 }
 if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     Write-Host "ERROR: Azure CLI (az) is not installed. Please install it from https://learn.microsoft.com/en-us/cli/azure/install-azure-cli and log in using 'az login'." -ForegroundColor Red
@@ -278,12 +270,9 @@ if (-not (Get-Module -ListAvailable -Name Az.Accounts)) {
 Import-Module Az.Accounts -ErrorAction SilentlyContinue
 
 #############################
-#                           #
 #   Azure CLI & Graph Login #
-#                           #
 #############################
 Write-Banner "Azure CLI & Graph Login"
-# --- Azure CLI Login ---
 $azLoggedIn = $false
 try {
     $azAccount = az account show 2>$null | ConvertFrom-Json
@@ -301,7 +290,6 @@ if (-not $azLoggedIn) {
     Write-Log "Logged in to Azure CLI as $($azAccount.user.name)"
 }
 
-# --- Az PowerShell Login ---
 $azPSLoggedIn = $false
 try {
     $azContext = Get-AzContext
@@ -319,7 +307,6 @@ if (-not $azPSLoggedIn) {
     Write-Log "Connected to Az PowerShell as $($azContext.Account)"
 }
 
-# --- Microsoft Graph Login ---
 $graphLoggedIn = $false
 try {
     $mgContext = Get-MgContext
@@ -331,16 +318,15 @@ try {
 } catch {}
 if (-not $graphLoggedIn) {
     Write-Host "Connecting to Microsoft Graph..." -ForegroundColor Yellow
-    Connect-MgGraph -Scopes "User.ReadWrite.All, Group.ReadWrite.All, Directory.ReadWrite.All, Application.Read.All, Policy.ReadWrite.ConditionalAccess"
+    $tenantId = $azAccount.tenantId
+    Connect-MgGraph -TenantId $tenantId -Scopes "User.ReadWrite.All, Group.ReadWrite.All, Directory.ReadWrite.All, Application.Read.All, Policy.ReadWrite.ConditionalAccess"
     $mgContext = Get-MgContext
     Write-Host "Connected to Microsoft Graph as $($mgContext.Account)" -ForegroundColor Cyan
     Write-Log "Connected to Microsoft Graph as $($mgContext.Account)"
 }
 
 #############################
-#                           #
 # Subscription/Resource Sel #
-#                           #
 #############################
 Write-Banner "Subscription/Resource Sel"
 if (-not $skipPrompts) {
@@ -395,9 +381,7 @@ if (-not $skipPrompts) {
 }
 
 #############################
-#                           #
 #  Session Host User Input  #
-#                           #
 #############################
 Write-Banner "Session Host User Input"
 $hostCount = 1
@@ -414,9 +398,7 @@ for ($i = 1; $i -le $hostCount; $i++) {
 }
 
 #############################
-#                           #
 #   Admin & DNS Inputs      #
-#                           #
 #############################
 Write-Banner "Admin & DNS Inputs"
 Write-Host "=== ADMIN CREDENTIALS ===" -ForegroundColor Yellow
@@ -433,9 +415,7 @@ Write-Host "=== SESSION HOST PREP SCRIPT URL ===" -ForegroundColor Yellow
 $sessionHostPrepScriptUrl = Prompt-OptionalParam "Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl)" "https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1"
 
 #############################
-#                           #
 # Hostpool Registration Key #
-#                           #
 #############################
 Write-Banner "Hostpool Registration Key"
 Write-Host "=== HOST POOL REGISTRATION KEY ===" -ForegroundColor Yellow
@@ -457,9 +437,7 @@ try {
 }
 
 #############################
-#                           #
 #      Summary Output       #
-#                           #
 #############################
 Write-Banner "Summary Output"
 Write-Host "========= SUMMARY =========" -ForegroundColor Magenta
@@ -484,9 +462,7 @@ Write-Host "===========================" -ForegroundColor Magenta
 Write-Log "Summary displayed"
 
 #############################
-#                           #
 #  Group Assignment Prompt  #
-#                           #
 #############################
 Write-Banner "Group Assignment Prompt"
 Write-Host "Would you like to add each user to a group?"
@@ -499,9 +475,7 @@ $groupChoice = Read-Host
 if ([string]::IsNullOrWhiteSpace($groupChoice)) { $groupChoice = "1" }
 
 #############################
-#                           #
 #    Deployment Prompt      #
-#                           #
 #############################
 Write-Banner "Deployment Prompt"
 Write-Host "`nTip: To fully log out in future, run:" -ForegroundColor DarkGray
@@ -516,142 +490,202 @@ if ($deployNow -eq "y") {
     foreach ($user in $userDetails) {
         $sessionHostName = "$sessionHostPrefix-$($user.FirstName)$($user.LastName)"
         $sessionHostNames += $sessionHostName
-        Write-Host "`nStarting deployment for $($user.FirstName) $($user.LastName) ($($user.UPN))..." -ForegroundColor Yellow
-        Write-Log "Deploying session host for $($user.UPN)"
-        $paramArgs = @(
-            "--resource-group", $resourceGroup,
-            "--template-file", $bicepTemplateFile,
-            "--parameters",
-            "sessionHostPrefix=$sessionHostPrefix",
-            "userFirstName=$($user.FirstName)",
-            "userLastName=$($user.LastName)",
-            "userUPN=$($user.UPN)",
-            "adminUsername=$adminUsername",
-            "adminPassword=$adminPassword",
-            "hostPoolRegistrationInfoToken=$hostPoolRegistrationInfoToken",
-            "vNetResourceGroup=$vNetResourceGroup",
-            "vNetName=$vNetName",
-            "subnetName=$subnetName",
-            "dns1=$dns1",
-            "dns2=$dns2",
-            "sessionHostPrepScriptUrl=$sessionHostPrepScriptUrl"
-        )
-        Write-Host "az deployment group create $((Mask-SensitiveArgs $paramArgs) -join ' ')" -ForegroundColor Gray
+
+        # ========== VM EXISTENCE CHECK ==========
+        $vmExists = $false
         try {
-            az deployment group create @paramArgs
-            Write-Host "`nDeployment command executed for $($user.UPN)." -ForegroundColor Green
-            Write-Log "Deployment command executed for $($user.UPN) successfully"
-        } catch {
-            Write-Host "`nDeployment command failed for $($user.UPN)." -ForegroundColor Red
-            Write-Log "Deployment command failed for $($user.UPN): $($_)"
+            az vm show --name $sessionHostName --resource-group $resourceGroup --output none 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $vmExists = $true
+            }
+        } catch {}
+        
+        if ($vmExists) {
+            Write-Host "WARNING: Session host VM '$sessionHostName' already exists in resource group '$resourceGroup'. Skipping Bicep deployment for this host." -ForegroundColor Yellow
+            Write-Log "Session host VM '$sessionHostName' already exists. Skipping Bicep deployment."
+        } else {
+            Write-Host "`nStarting deployment for $($user.FirstName) $($user.LastName) ($($user.UPN))..." -ForegroundColor Yellow
+            Write-Log "Deploying session host for $($user.UPN)"
+            $paramArgs = @(
+                "--resource-group", $resourceGroup,
+                "--template-file", $bicepTemplateFile,
+                "--parameters",
+                "sessionHostPrefix=$sessionHostPrefix",
+                "userFirstName=$($user.FirstName)",
+                "userLastName=$($user.LastName)",
+                "userUPN=$($user.UPN)",
+                "adminUsername=$adminUsername",
+                "adminPassword=$adminPassword",
+                "hostPoolRegistrationInfoToken=$hostPoolRegistrationInfoToken",
+                "vNetResourceGroup=$vNetResourceGroup",
+                "vNetName=$vNetName",
+                "subnetName=$subnetName",
+                "dns1=$dns1",
+                "dns2=$dns2",
+                "sessionHostPrepScriptUrl=$sessionHostPrepScriptUrl"
+            )
+            Write-Host "az deployment group create $((Mask-SensitiveArgs $paramArgs) -join ' ')" -ForegroundColor Gray
+            try {
+                az deployment group create @paramArgs
+                Write-Host "`nDeployment command executed for $($user.UPN)." -ForegroundColor Green
+                Write-Log "Deployment command executed for $($user.UPN) successfully"
+            } catch {
+                $errMsg = $_.Exception.Message
+                Write-Host ("Deployment command failed for {0}: {1}" -f $user.UPN, $errMsg) -ForegroundColor Red
+                Write-Log ("Deployment command failed for {0}: {1}" -f $user.UPN, $errMsg)
+            }
         }
     }
 
     #############################
-    #                           #
     # Assign User to SessionHost#
-    #                           #
     #############################
     Write-Banner "Assign User to SessionHost"
-    for ($i = 0; $i -lt $userDetails.Count; $i++) {
-        $user = $userDetails[$i]
-        $sessionHostName = $sessionHostNames[$i]
-
-        # Some environments require FQDN, but often it's just the VM name. Adjust if needed.
-        try {
-            az desktopvirtualization sessionhost update `
-                --host-pool-name $hostPoolName `
-                --resource-group $resourceGroup `
-                --name $sessionHostName `
-                --assigned-user $user.UPN
-            Write-Host "Assigned $($user.UPN) to session host $sessionHostName." -ForegroundColor Cyan
-            Write-Log "Assigned $($user.UPN) to session host $sessionHostName"
-        } catch {
-            Write-Host "Failed to assign $($user.UPN) to session host $sessionHostName." -ForegroundColor Red
-            Write-Log ("Failed to assign {0} to session host {1}: {2}" -f $user.UPN, $sessionHostName, $_)
-        }
-    }
-
-    #############################
-    #                           #
-    #       Add to Groups       #
-    #                           #
-    #############################
-    Write-Banner "AAD Group Membership"
     foreach ($user in $userDetails) {
-        $userUpn = $user.UPN
-        try {
-            $mgUser = Get-MgUser -UserId $userUpn -ErrorAction Stop
-            $userObjectId = $mgUser.Id
-        } catch {
-            Write-Host "Failed to locate user $userUpn in Entra ID: $($_.Exception.Message)" -ForegroundColor Red
-            Write-Log ("Failed to locate user {0} in Entra ID: {1}" -f $userUpn, $_.Exception.Message)
-            continue
-        }
+    $sessionHostName = "$sessionHostPrefix-$($user.FirstName)$($user.LastName)"
+    try {
+        Update-AzWvdSessionHost `
+            -ResourceGroupName $resourceGroup `
+            -HostPoolName $hostPoolName `
+            -Name $sessionHostName `
+            -AssignedUser $user.UPN
+        Write-Host "Assigned $($user.UPN) to session host $sessionHostName using Update-AzWvdSessionHost." -ForegroundColor Cyan
+        Write-Log "Assigned $($user.UPN) to session host $sessionHostName using Update-AzWvdSessionHost"
+    } catch {
+        $errMsg = $_.Exception.Message
+        Write-Host ("Failed to assign {0} to session host {1}: {2}" -f $user.UPN, $sessionHostName, $errMsg) -ForegroundColor Red
+        Write-Log ("Failed to assign {0} to session host {1}: {2}" -f $user.UPN, $sessionHostName, $errMsg)
+    }
+}
+#############################
+#       Add to Groups       #
+#############################
+Write-Banner "Entra Group Membership (Graph API)"
 
-        if ($groupChoice -eq "1" -or $groupChoice -eq "3") {
-            try {
-                Add-MgGroupMember -GroupId $vPAWUsersGroupObjectId -DirectoryObjectId $userObjectId -ErrorAction Stop
-                Write-Host "Added $userUpn to vPAW Users group." -ForegroundColor Cyan
-                Write-Log "Added $userUpn to vPAW Users group"
-            } catch {
-                Write-Host "Failed to add $userUpn to vPAW Users group: $($_.Exception.Message)" -ForegroundColor Red
-                Write-Log ("Failed to add {0} to vPAW Users group: {1}" -f $userUpn, $_.Exception.Message)
-            }
+$tenantId = $azAccount.tenantId
+try {
+    Disconnect-MgGraph -ErrorAction SilentlyContinue
+} catch {}
+Connect-MgGraph -TenantId $tenantId -Scopes "User.ReadWrite.All, Group.ReadWrite.All, Directory.ReadWrite.All" | Out-Null
+
+foreach ($user in $userDetails) {
+    $userUpn = $user.UPN
+    try {
+        # Use filter to get ObjectId; UPN must be quoted
+        $mgUser = Get-MgUser -Filter "userPrincipalName eq '$userUpn'"
+        if (-not $mgUser) {
+            throw "User not found"
         }
-        if ($groupChoice -eq "2" -or $groupChoice -eq "3") {
-            try {
-                Add-MgGroupMember -GroupId $vPAWAdminsGroupObjectId -DirectoryObjectId $userObjectId -ErrorAction Stop
-                Write-Host "Added $userUpn to vPAW Admins group." -ForegroundColor Cyan
-                Write-Log "Added $userUpn to vPAW Admins group"
-            } catch {
-                Write-Host "Failed to add $userUpn to vPAW Admins group: $($_.Exception.Message)" -ForegroundColor Red
-                Write-Log ("Failed to add {0} to vPAW Admins group: {1}" -f $userUpn, $_.Exception.Message)
-            }
+        $userObjectId = $mgUser.Id
+        Write-Host "Found user $userUpn with ObjectId $userObjectId" -ForegroundColor Green
+    } catch {
+        $errMsg = $_.Exception.Message
+        Write-Host "Failed to locate user $userUpn in Entra ID: $errMsg" -ForegroundColor Red
+        Write-Log "Failed to locate user $userUpn in Entra ID: $errMsg"
+        continue
+    }
+
+    if ($groupChoice -eq "1" -or $groupChoice -eq "3") {
+        try {
+            New-MgGroupMember -GroupId $vPAWUsersGroupObjectId -DirectoryObjectId $userObjectId -ErrorAction Stop
+            Write-Host "Added $userUpn (ObjectId: $userObjectId) to vPAW Users group." -ForegroundColor Cyan
+            Write-Log "Added $userUpn (ObjectId: $userObjectId) to vPAW Users group"
+        } catch {
+            $errMsg = $_.Exception.Message
+            Write-Host "Failed to add $userUpn to vPAW Users group: $errMsg" -ForegroundColor Red
+            Write-Log "Failed to add $userUpn to vPAW Users group: $errMsg"
         }
     }
+    if ($groupChoice -eq "2" -or $groupChoice -eq "3") {
+        try {
+            New-MgGroupMember -GroupId $vPAWAdminsGroupObjectId -DirectoryObjectId $userObjectId -ErrorAction Stop
+            Write-Host "Added $userUpn (ObjectId: $userObjectId) to vPAW Admins group." -ForegroundColor Cyan
+            Write-Log "Added $userUpn (ObjectId: $userObjectId) to vPAW Admins group"
+        } catch {
+            $errMsg = $_.Exception.Message
+            Write-Host "Failed to add $userUpn to vPAW Admins group: $errMsg" -ForegroundColor Red
+            Write-Log "Failed to add $userUpn to vPAW Admins group: $errMsg"
+        }
+    }
+}
 } else {
     Write-Host "Deployment skipped. You can deploy later using the collected parameters." -ForegroundColor Yellow
     Write-Log "Deployment skipped by user"
     exit 0
 }
+ #############################
+#      VM Auto-Shutdown     #
+#############################
+Write-Banner "Configure VM Auto-Shutdown"
+foreach ($user in $userDetails) {
+    $vmName = "$sessionHostPrefix-$($user.FirstName)$($user.LastName)"
+    $upn = $user.UPN
+     Write-Host "Setting auto-shutdown for VM: $vmName (Notify: $upn)" -ForegroundColor Yellow
+     az vm auto-shutdown --resource-group $resourceGroup --name $vmName --time 18:00 --email $upn --webhook "" 2>&1 | Write-Host
+    }
 
 #############################
-#                           #
-# Invalidate Reg. Key/Save  #
-#                           #
+# Set Device Extension Attributes
 #############################
-Write-Banner "Invalidate Reg. Key/Save"
-Write-Host "Invalidating registration key for security..." -ForegroundColor Yellow
-az desktopvirtualization hostpool update `
-  --resource-group $resourceGroup `
-  --name $hostPoolName `
-  --registration-info expiration-time=1970-01-01T00:00:00Z registration-token-operation=Delete | Out-Null
-Write-Host "Registration key removed." -ForegroundColor Green
-Write-Log "Registration key invalidated"
-
-Write-Host "Ensuring PowerShell and Microsoft Graph context post-deployment..." -ForegroundColor Cyan
-Select-AzSubscription -SubscriptionId $chosenSub.id
-
-# --- Save Session for Future Use ---
-$sessionParams = @{
-    SubscriptionId = $chosenSub.id
-    SubscriptionName = $chosenSub.name
-    ResourceGroup = $resourceGroup
-    ResourceGroupLocation = $resourceGroupLocation
-    HostPoolName = $hostPoolName
-    VNetName = $vNetName
-    SubnetName = $subnetName
-    DefaultPrefix = $sessionHostPrefix
-    BicepTemplateFile = $bicepTemplateFile
-    vPAWUsersGroupDisplayName = $vPAWUsersGroupDisplayName
-    vPAWUsersGroupObjectId = $vPAWUsersGroupObjectId
-    vPAWAdminsGroupDisplayName = $vPAWAdminsGroupDisplayName
-    vPAWAdminsGroupObjectId = $vPAWAdminsGroupObjectId
-    SavedAt = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+Write-Banner "Set vPAW Device Extension Attributes"
+$params = @{
+    extensionAttributes = @{
+        extensionAttribute1 = "virtual Privileged Access Workstation"
+    }
 }
-$sessionParams | ConvertTo-Json | Set-Content $confFile
-Write-Log "Session parameters saved to $confFile"
+$devices = Get-MgDevice -Filter "startswith(displayName,'$resourceGroup')"
+foreach ($device in $devices) {
+    Write-Host "Tagging device: $($device.displayName) ($($device.Id))" -ForegroundColor Cyan
+    Update-MgDevice -DeviceId $device.Id -BodyParameter $params
+}
+Write-Log "Device extension attributes set for all devices with displayName starting with '$resourceGroup'"
 
-Write-Host "`nScript complete." -ForegroundColor Cyan
-Write-Log "Script complete"
+#############################
+# Invalidate Reg. Key/Save  #
+#############################
+Write-Banner "Invalidate Reg. Key/Save Config"
+Write-Host "Invalidating host pool registration key for security..." -ForegroundColor Yellow
+try {
+    az desktopvirtualization hostpool update `
+        --resource-group $resourceGroup `
+        --name $hostPoolName `
+        --registration-info registration-token-operation=Delete `
+        --output none
+    Write-Host "Registration key invalidated." -ForegroundColor Cyan
+    Write-Log "Host pool registration key invalidated"
+} catch {
+    $errMsg = $_.Exception.Message
+    Write-Host "Failed to invalidate the host pool registration key: $errMsg" -ForegroundColor Red
+    Write-Log "Failed to invalidate host pool registration key: $errMsg"
+}
+
+Write-Host "Saving session parameters to $confFile..." -ForegroundColor Yellow
+try {
+    $saveParams = @{
+        SubscriptionName = $chosenSub.name
+        SubscriptionId = $chosenSub.id
+        ResourceGroup = $resourceGroup
+        ResourceGroupLocation = $resourceGroupLocation
+        HostPoolName = $hostPoolName
+        VNetName = $vNetName
+        SubnetName = $subnetName
+        DefaultPrefix = $sessionHostPrefix
+        BicepTemplateFile = $bicepTemplateFile
+        vPAWUsersGroupDisplayName = $vPAWUsersGroupDisplayName
+        vPAWUsersGroupObjectId = $vPAWUsersGroupObjectId
+        vPAWAdminsGroupDisplayName = $vPAWAdminsGroupDisplayName
+        vPAWAdminsGroupObjectId = $vPAWAdminsGroupObjectId
+    }
+    $saveParams | ConvertTo-Json | Set-Content $confFile
+    Write-Host "Session parameters saved to $confFile." -ForegroundColor Green
+    Write-Log "Session parameters saved to $confFile"
+} catch {
+    $errMsg = $_.Exception.Message
+    Write-Host "Failed to save session parameters: $errMsg" -ForegroundColor Red
+    Write-Log "Failed to save session parameters: $errMsg"
+}
+
+Write-Host "`n===== vPAW Session Host deployment workflow completed =====" -ForegroundColor Magenta
+Write-Log "Workflow completed"
+
+exit 0

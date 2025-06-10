@@ -235,3 +235,409 @@
 2025-06-10 15:19:48 - Summary displayed
 2025-06-10 15:19:52 - User chose to deploy: y
 2025-06-10 15:19:52 - Deploying session host for andrew@kemponline.co.uk
+2025-06-10 15:34:34 - Deployment command executed for andrew@kemponline.co.uk successfully
+2025-06-10 15:34:34 - Deploying session host for adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 15:49:26 - Deployment command executed for adm_andrew.kemp@kempy.onmicrosoft.com successfully
+2025-06-10 15:49:30 - Assigned andrew@kemponline.co.uk to session host vPAW-AndrewKemp
+2025-06-10 15:49:33 - Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndyKemp
+2025-06-10 15:49:35 - Registration key invalidated
+2025-06-10 15:49:38 - Session parameters saved to vPAWconf.inf
+2025-06-10 15:49:38 - Script complete
+2025-06-10 15:56:18 - Script started by andrew
+2025-06-10 15:56:18 - Loaded previous session config from vPAWconf.inf
+2025-06-10 15:56:19 - User chose to reuse previous session config: y
+2025-06-10 15:56:19 - Checking modules and Azure CLI presence
+2025-06-10 15:56:21 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 15:56:21 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 15:56:21 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 15:56:24 - User manually selected bicep file: vPAW-CoreInfra.Bicep
+2025-06-10 15:56:28 - Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-10 15:56:35 - Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-10 15:56:36 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 15:56:46 - Prompted: Enter the user's UPN (userUPN):  Value: andrew@kemponline.co.uk
+2025-06-10 15:56:48 - Prompted: Enter the first name of the user (userFirstName):  Value: Andy
+2025-06-10 15:56:49 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 15:56:59 - Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 15:57:03 - Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-10 15:57:12 - Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-10 15:57:12 - Admin credentials entered (password not logged)
+2025-06-10 15:57:13 - Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-10 15:57:13 - Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-10 15:57:14 - Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-10 15:57:16 - Registration key generated (expires 2025-06-11T14:57:14Z)
+2025-06-10 15:57:17 - Summary displayed
+2025-06-10 15:57:29 - User chose to deploy: y
+2025-06-10 15:57:29 - Deploying session host for andrew@kemponline.co.uk
+2025-06-10 15:57:34 - Deployment command executed for andrew@kemponline.co.uk successfully
+2025-06-10 15:57:34 - Deploying session host for adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 15:57:39 - Deployment command executed for adm_andrew.kemp@kempy.onmicrosoft.com successfully
+2025-06-10 15:57:46 - Assigned andrew@kemponline.co.uk to session host vPAW-AndrewKemp
+2025-06-10 15:57:49 - Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndyKemp
+2025-06-10 15:58:01 - Failed to add andrew@kemponline.co.uk to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 15:58:01 - Failed to add adm_andrew.kemp@kempy.onmicrosoft.com to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 16:04:27 - Script started by andrew
+2025-06-10 16:04:27 - Loaded previous session config from vPAWconf.inf
+2025-06-10 16:04:29 - User chose to reuse previous session config: y
+2025-06-10 16:04:29 - Checking modules and Azure CLI presence
+2025-06-10 16:04:30 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 16:04:30 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 16:04:30 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 16:04:38 - User manually selected bicep file: vPAW-CoreInfra.Bicep
+2025-06-10 16:04:42 - Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-10 16:04:48 - Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-10 16:04:50 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 16:04:57 - Prompted: Enter the user's UPN (userUPN):  Value: andrew@kemponline.co.uk
+2025-06-10 16:05:00 - Prompted: Enter the first name of the user (userFirstName):  Value: Andy
+2025-06-10 16:05:01 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 16:05:14 - Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 16:05:16 - Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-10 16:05:24 - Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-10 16:05:24 - Admin credentials entered (password not logged)
+2025-06-10 16:05:25 - Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-10 16:05:25 - Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-10 16:05:26 - Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-10 16:05:28 - Registration key generated (expires 2025-06-11T15:05:26Z)
+2025-06-10 16:05:28 - Summary displayed
+2025-06-10 16:05:39 - User chose to deploy: y
+2025-06-10 16:05:39 - Deploying session host for andrew@kemponline.co.uk
+2025-06-10 16:05:43 - Deployment command executed for andrew@kemponline.co.uk successfully
+2025-06-10 16:05:43 - Deploying session host for adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 16:05:48 - Deployment command executed for adm_andrew.kemp@kempy.onmicrosoft.com successfully
+2025-06-10 16:05:55 - Assigned andrew@kemponline.co.uk to session host vPAW-AndrewKemp
+2025-06-10 16:05:59 - Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndyKemp
+2025-06-10 16:06:03 - Failed to add andrew@kemponline.co.uk to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 16:06:03 - Failed to add adm_andrew.kemp@kempy.onmicrosoft.com to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 16:06:05 - Host pool registration key invalidated
+2025-06-10 16:06:05 - Session parameters saved to vPAWconf.inf
+2025-06-10 16:06:05 - Workflow completed
+2025-06-10 16:19:42 - Script started by andrew
+2025-06-10 16:19:42 - Loaded previous session config from vPAWconf.inf
+2025-06-10 16:24:37 - Script started by andrew
+2025-06-10 16:24:37 - Loaded previous session config from vPAWconf.inf
+2025-06-10 16:24:40 - User chose to reuse previous session config: y
+2025-06-10 16:24:40 - Checking modules and Azure CLI presence
+2025-06-10 16:24:43 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 16:24:43 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 16:24:43 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 16:24:50 - Auto-selected session host bicep file: vPAW-Deploy-SessionHost.bicep
+2025-06-10 16:24:53 - Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-10 16:25:00 - Prompted: Enter the first name of the user (userFirstName):  Value: Andrew Kemp
+2025-06-10 16:25:03 - Script started by andrew
+2025-06-10 16:25:03 - Loaded previous session config from vPAWconf.inf
+2025-06-10 16:25:04 - User chose to reuse previous session config: y
+2025-06-10 16:25:04 - Checking modules and Azure CLI presence
+2025-06-10 16:25:05 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 16:25:05 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 16:25:05 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 16:25:06 - Auto-selected session host bicep file: vPAW-Deploy-SessionHost.bicep
+2025-06-10 16:25:08 - Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-10 16:25:12 - Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-10 16:25:14 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 16:25:21 - Prompted: Enter the user's UPN (userUPN):  Value: andrew@kemponline.co.uk
+2025-06-10 16:25:23 - Prompted: Enter the first name of the user (userFirstName):  Value: Andy
+2025-06-10 16:25:24 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 16:25:33 - Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 16:25:35 - Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-10 16:25:44 - Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-10 16:25:44 - Admin credentials entered (password not logged)
+2025-06-10 16:25:46 - Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-10 16:25:47 - Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-10 16:25:48 - Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-10 16:25:51 - Registration key generated (expires 2025-06-11T15:25:48Z)
+2025-06-10 16:25:51 - Summary displayed
+2025-06-10 16:25:57 - User chose to deploy: y
+2025-06-10 16:25:59 - Session host VM 'vPAW-AndrewKemp' already exists. Skipping Bicep deployment.
+2025-06-10 16:26:01 - Session host VM 'vPAW-AndyKemp' already exists. Skipping Bicep deployment.
+2025-06-10 16:26:02 - Assigned andrew@kemponline.co.uk to session host vPAW-AndrewKemp using Update-AzWvdSessionHost
+2025-06-10 16:26:03 - Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndyKemp using Update-AzWvdSessionHost
+2025-06-10 16:26:09 - Failed to add andrew@kemponline.co.uk to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 16:26:09 - Failed to add adm_andrew.kemp@kempy.onmicrosoft.com to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 16:26:11 - Host pool registration key invalidated
+2025-06-10 16:26:11 - Session parameters saved to vPAWconf.inf
+2025-06-10 16:26:11 - Workflow completed
+2025-06-10 16:34:29 - Script started by andrew
+2025-06-10 16:34:29 - Loaded previous session config from vPAWconf.inf
+2025-06-10 16:34:30 - User chose to reuse previous session config: y
+2025-06-10 16:34:30 - Checking modules and Azure CLI presence
+2025-06-10 16:34:35 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 16:34:35 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 16:34:35 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 16:34:55 - User manually selected bicep file: vPAW-CoreInfra.Bicep
+2025-06-10 16:34:58 - Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-10 16:35:06 - Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-10 16:35:08 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 16:35:18 - Prompted: Enter the user's UPN (userUPN):  Value: andrew@kemponline.co.uk
+2025-06-10 16:35:21 - Prompted: Enter the first name of the user (userFirstName):  Value: Andy
+2025-06-10 16:35:22 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 16:35:34 - Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 16:35:36 - Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-10 16:35:45 - Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-10 16:35:45 - Admin credentials entered (password not logged)
+2025-06-10 16:35:46 - Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-10 16:35:46 - Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-10 16:35:47 - Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-10 16:35:49 - Registration key generated (expires 2025-06-11T15:35:47Z)
+2025-06-10 16:35:49 - Summary displayed
+2025-06-10 16:36:00 - User chose to deploy: y
+2025-06-10 16:36:02 - Session host VM 'vPAW-AndrewKemp' already exists. Skipping Bicep deployment.
+2025-06-10 16:36:04 - Session host VM 'vPAW-AndyKemp' already exists. Skipping Bicep deployment.
+2025-06-10 16:36:04 - Assigned andrew@kemponline.co.uk to session host vPAW-AndrewKemp using Update-AzWvdSessionHost
+2025-06-10 16:36:05 - Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndyKemp using Update-AzWvdSessionHost
+2025-06-10 16:36:08 - Failed to add andrew@kemponline.co.uk to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 16:36:08 - Failed to add adm_andrew.kemp@kempy.onmicrosoft.com to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 16:36:10 - Host pool registration key invalidated
+2025-06-10 16:36:10 - Session parameters saved to vPAWconf.inf
+2025-06-10 16:36:10 - Workflow completed
+2025-06-10 16:46:25 - Script started by andrew
+2025-06-10 16:46:25 - Loaded previous session config from vPAWconf.inf
+2025-06-10 16:46:26 - User chose to reuse previous session config: y
+2025-06-10 16:46:26 - Checking modules and Azure CLI presence
+2025-06-10 16:46:30 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 16:46:30 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 16:46:30 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 16:46:34 - Auto-selected session host bicep file: vPAW-Deploy-SessionHost.bicep
+2025-06-10 16:46:38 - Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-10 16:49:21 - Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-10 16:49:23 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 16:49:27 - Prompted: Enter the user's UPN (userUPN):  Value: andrew@kemponline.co.uk
+2025-06-10 16:49:29 - Prompted: Enter the first name of the user (userFirstName):  Value: Andy
+2025-06-10 16:49:30 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 16:49:45 - Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 16:49:47 - Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-10 16:49:55 - Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-10 16:49:55 - Admin credentials entered (password not logged)
+2025-06-10 16:49:56 - Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-10 16:49:56 - Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-10 16:49:57 - Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-10 16:49:59 - Registration key generated (expires 2025-06-11T15:49:57Z)
+2025-06-10 16:49:59 - Summary displayed
+2025-06-10 16:50:04 - User chose to deploy: y
+2025-06-10 16:50:06 - Session host VM 'vPAW-AndrewKemp' already exists. Skipping Bicep deployment.
+2025-06-10 16:50:08 - Session host VM 'vPAW-AndyKemp' already exists. Skipping Bicep deployment.
+2025-06-10 16:50:08 - Assigned andrew@kemponline.co.uk to session host vPAW-AndrewKemp using Update-AzWvdSessionHost
+2025-06-10 16:50:08 - Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndyKemp using Update-AzWvdSessionHost
+2025-06-10 16:50:13 - Failed to add andrew@kemponline.co.uk to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 16:50:13 - Failed to add adm_andrew.kemp@kempy.onmicrosoft.com to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 16:50:19 - Device extension attributes set for all devices with displayName starting with 'vPAW'
+2025-06-10 16:50:21 - Host pool registration key invalidated
+2025-06-10 16:50:21 - Session parameters saved to vPAWconf.inf
+2025-06-10 16:50:21 - Workflow completed
+2025-06-10 16:51:02 - Script started by andrew
+2025-06-10 16:51:02 - Loaded previous session config from vPAWconf.inf
+2025-06-10 16:51:04 - User chose to reuse previous session config: y
+2025-06-10 16:51:04 - Checking modules and Azure CLI presence
+2025-06-10 16:51:07 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 16:51:07 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 16:51:07 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 16:51:10 - User manually selected bicep file: vPAW-CoreInfra.Bicep
+2025-06-10 16:51:12 - Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-10 16:51:20 - Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-10 16:51:22 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 16:51:28 - Prompted: Enter the user's UPN (userUPN):  Value: andrew@kemponline.co.uk
+2025-06-10 16:51:35 - Prompted: Enter the first name of the user (userFirstName):  Value: Andy
+2025-06-10 16:51:37 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 16:51:50 - Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 16:51:51 - Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-10 16:51:59 - Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-10 16:51:59 - Admin credentials entered (password not logged)
+2025-06-10 16:52:01 - Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-10 16:52:02 - Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-10 16:52:03 - Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-10 16:52:04 - Registration key generated (expires 2025-06-11T15:52:03Z)
+2025-06-10 16:52:05 - Summary displayed
+2025-06-10 16:52:10 - User chose to deploy: y
+2025-06-10 16:52:12 - Session host VM 'vPAW-AndrewKemp' already exists. Skipping Bicep deployment.
+2025-06-10 16:52:13 - Session host VM 'vPAW-AndyKemp' already exists. Skipping Bicep deployment.
+2025-06-10 16:52:14 - Assigned andrew@kemponline.co.uk to session host vPAW-AndrewKemp using Update-AzWvdSessionHost
+2025-06-10 16:52:14 - Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndyKemp using Update-AzWvdSessionHost
+2025-06-10 16:52:28 - Failed to add andrew@kemponline.co.uk to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 16:52:28 - Failed to add adm_andrew.kemp@kempy.onmicrosoft.com to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 16:52:31 - Device extension attributes set for all devices with displayName starting with 'vPAW'
+2025-06-10 16:52:33 - Host pool registration key invalidated
+2025-06-10 16:52:33 - Session parameters saved to vPAWconf.inf
+2025-06-10 16:52:33 - Workflow completed
+2025-06-10 16:55:47 - Script started by andrew
+2025-06-10 16:55:47 - Loaded previous session config from vPAWconf.inf
+2025-06-10 16:55:48 - User chose to reuse previous session config: y
+2025-06-10 16:55:48 - Checking modules and Azure CLI presence
+2025-06-10 16:55:55 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 16:55:55 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 16:55:55 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 16:55:56 - Auto-selected session host bicep file: vPAW-Deploy-SessionHost.bicep
+2025-06-10 16:55:59 - Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-10 16:56:04 - Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-10 16:56:05 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 16:56:13 - Prompted: Enter the user's UPN (userUPN):  Value: andrew@kemponline.co.uk
+2025-06-10 16:56:16 - Prompted: Enter the first name of the user (userFirstName):  Value: Andy
+2025-06-10 16:56:18 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 16:56:29 - Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 16:56:31 - Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-10 16:56:38 - Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-10 16:56:38 - Admin credentials entered (password not logged)
+2025-06-10 16:56:39 - Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-10 16:56:39 - Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-10 16:56:40 - Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-10 16:56:42 - Registration key generated (expires 2025-06-11T15:56:40Z)
+2025-06-10 16:56:42 - Summary displayed
+2025-06-10 16:56:48 - User chose to deploy: y
+2025-06-10 16:56:49 - Session host VM 'vPAW-AndrewKemp' already exists. Skipping Bicep deployment.
+2025-06-10 16:56:51 - Session host VM 'vPAW-AndyKemp' already exists. Skipping Bicep deployment.
+2025-06-10 16:56:51 - Assigned andrew@kemponline.co.uk to session host vPAW-AndrewKemp using Update-AzWvdSessionHost
+2025-06-10 16:56:52 - Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndyKemp using Update-AzWvdSessionHost
+2025-06-10 16:56:55 - Failed to add andrew@kemponline.co.uk to vPAW Users group: Cannot bind argument to parameter 'TargetGroupObjectId' because it is an empty string.
+2025-06-10 16:56:55 - Failed to add adm_andrew.kemp@kempy.onmicrosoft.com to vPAW Users group: Cannot bind argument to parameter 'TargetGroupObjectId' because it is an empty string.
+2025-06-10 16:56:58 - Device extension attributes set for all devices with displayName starting with 'vPAW'
+2025-06-10 16:57:00 - Host pool registration key invalidated
+2025-06-10 16:57:00 - Session parameters saved to vPAWconf.inf
+2025-06-10 16:57:00 - Workflow completed
+2025-06-10 17:00:09 - Script started by andrew
+2025-06-10 17:00:09 - Loaded previous session config from vPAWconf.inf
+2025-06-10 17:00:10 - User chose to reuse previous session config: y
+2025-06-10 17:00:10 - Checking modules and Azure CLI presence
+2025-06-10 17:00:13 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 17:00:13 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 17:00:13 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 17:00:16 - User manually selected bicep file: vPAW-CoreInfra.Bicep
+2025-06-10 17:00:19 - Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-10 17:00:24 - Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-10 17:00:25 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 17:00:30 - Prompted: Enter the user's UPN (userUPN):  Value: andrew@kemponline.co.uk
+2025-06-10 17:00:32 - Prompted: Enter the first name of the user (userFirstName):  Value: Andy
+2025-06-10 17:00:34 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 17:00:43 - Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 17:00:44 - Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-10 17:00:53 - Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-10 17:00:53 - Admin credentials entered (password not logged)
+2025-06-10 17:00:55 - Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-10 17:00:56 - Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-10 17:00:56 - Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-10 17:00:58 - Registration key generated (expires 2025-06-11T16:00:56Z)
+2025-06-10 17:00:58 - Summary displayed
+2025-06-10 17:01:03 - User chose to deploy: y
+2025-06-10 17:01:05 - Session host VM 'vPAW-AndrewKemp' already exists. Skipping Bicep deployment.
+2025-06-10 17:01:07 - Session host VM 'vPAW-AndyKemp' already exists. Skipping Bicep deployment.
+2025-06-10 17:01:07 - Assigned andrew@kemponline.co.uk to session host vPAW-AndrewKemp using Update-AzWvdSessionHost
+2025-06-10 17:01:07 - Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndyKemp using Update-AzWvdSessionHost
+2025-06-10 17:01:11 - Failed to add andrew@kemponline.co.uk to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 17:01:11 - Failed to add adm_andrew.kemp@kempy.onmicrosoft.com to vPAW Users group: The term 'Add-MgGroupMember' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+2025-06-10 17:01:14 - Device extension attributes set for all devices with displayName starting with 'vPAW'
+2025-06-10 17:01:16 - Host pool registration key invalidated
+2025-06-10 17:01:16 - Session parameters saved to vPAWconf.inf
+2025-06-10 17:01:16 - Workflow completed
+2025-06-10 17:03:08 - Script started by andrew
+2025-06-10 17:03:08 - Loaded previous session config from vPAWconf.inf
+2025-06-10 17:03:09 - User chose to reuse previous session config: y
+2025-06-10 17:03:09 - Checking modules and Azure CLI presence
+2025-06-10 17:03:13 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 17:03:13 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 17:03:13 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 17:03:14 - Auto-selected session host bicep file: vPAW-Deploy-SessionHost.bicep
+2025-06-10 17:03:16 - Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-10 17:03:21 - Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-10 17:03:23 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 17:03:31 - Prompted: Enter the user's UPN (userUPN):  Value: andrew@kemponline.co.uk
+2025-06-10 17:03:33 - Prompted: Enter the first name of the user (userFirstName):  Value: Andy
+2025-06-10 17:03:34 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 17:03:42 - Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 17:03:44 - Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-10 17:03:51 - Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-10 17:03:51 - Admin credentials entered (password not logged)
+2025-06-10 17:03:51 - Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-10 17:03:52 - Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-10 17:03:53 - Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-10 17:03:55 - Registration key generated (expires 2025-06-11T16:03:53Z)
+2025-06-10 17:03:55 - Summary displayed
+2025-06-10 17:04:04 - User chose to deploy: y
+2025-06-10 17:04:06 - Session host VM 'vPAW-AndrewKemp' already exists. Skipping Bicep deployment.
+2025-06-10 17:04:08 - Session host VM 'vPAW-AndyKemp' already exists. Skipping Bicep deployment.
+2025-06-10 17:04:08 - Assigned andrew@kemponline.co.uk to session host vPAW-AndrewKemp using Update-AzWvdSessionHost
+2025-06-10 17:04:08 - Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndyKemp using Update-AzWvdSessionHost
+2025-06-10 17:04:12 - Failed to add andrew@kemponline.co.uk to vPAW Users group: Cannot bind argument to parameter 'GroupId' because it is an empty string.
+2025-06-10 17:04:12 - Failed to add adm_andrew.kemp@kempy.onmicrosoft.com to vPAW Users group: Cannot bind argument to parameter 'GroupId' because it is an empty string.
+2025-06-10 17:04:15 - Device extension attributes set for all devices with displayName starting with 'vPAW'
+2025-06-10 17:04:17 - Host pool registration key invalidated
+2025-06-10 17:04:17 - Session parameters saved to vPAWconf.inf
+2025-06-10 17:04:17 - Workflow completed
+2025-06-10 17:07:21 - Script started by andrew
+2025-06-10 17:07:21 - Loaded previous session config from vPAWconf.inf
+2025-06-10 17:07:25 - User chose to reuse previous session config: y
+2025-06-10 17:07:25 - Checking modules and Azure CLI presence
+2025-06-10 17:07:28 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 17:07:28 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 17:07:28 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 17:07:30 - User manually selected bicep file: vPAW-CoreInfra.Bicep
+2025-06-10 17:07:32 - Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-10 17:07:38 - Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-10 17:07:39 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 17:07:48 - Prompted: Enter the user's UPN (userUPN):  Value: andrew@kemponline.co.uk
+2025-06-10 17:07:51 - Prompted: Enter the first name of the user (userFirstName):  Value: Andy
+2025-06-10 17:07:52 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 17:08:03 - Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 17:08:04 - Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-10 17:08:12 - Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-10 17:08:12 - Admin credentials entered (password not logged)
+2025-06-10 17:08:13 - Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-10 17:08:13 - Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-10 17:08:14 - Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-10 17:08:15 - Registration key generated (expires 2025-06-11T16:08:14Z)
+2025-06-10 17:08:15 - Summary displayed
+2025-06-10 17:08:29 - User chose to deploy: y
+2025-06-10 17:08:30 - Session host VM 'vPAW-AndrewKemp' already exists. Skipping Bicep deployment.
+2025-06-10 17:08:32 - Session host VM 'vPAW-AndyKemp' already exists. Skipping Bicep deployment.
+2025-06-10 17:08:33 - Assigned andrew@kemponline.co.uk to session host vPAW-AndrewKemp using Update-AzWvdSessionHost
+2025-06-10 17:08:33 - Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndyKemp using Update-AzWvdSessionHost
+2025-06-10 17:08:36 - Failed to add andrew@kemponline.co.uk to vPAW Users group: Cannot bind argument to parameter 'GroupId' because it is an empty string.
+2025-06-10 17:08:36 - Failed to add adm_andrew.kemp@kempy.onmicrosoft.com to vPAW Users group: Cannot bind argument to parameter 'GroupId' because it is an empty string.
+2025-06-10 17:08:39 - Device extension attributes set for all devices with displayName starting with 'vPAW'
+2025-06-10 17:08:41 - Host pool registration key invalidated
+2025-06-10 17:08:41 - Session parameters saved to vPAWconf.inf
+2025-06-10 17:08:41 - Workflow completed
+2025-06-10 17:10:57 - Script started by andrew
+2025-06-10 17:10:57 - Failed to parse vPAWconf.inf
+2025-06-10 17:10:57 - Checking modules and Azure CLI presence
+2025-06-10 17:11:02 - Script started by andrew
+2025-06-10 17:11:02 - Failed to parse vPAWconf.inf
+2025-06-10 17:11:02 - Checking modules and Azure CLI presence
+2025-06-10 17:11:05 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 17:11:05 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 17:11:05 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 17:11:25 - Script started by andrew
+2025-06-10 17:11:25 - Failed to parse vPAWconf.inf
+2025-06-10 17:11:25 - Checking modules and Azure CLI presence
+2025-06-10 17:11:28 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 17:11:28 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 17:11:28 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 17:11:53 - Script started by andrew
+2025-06-10 17:11:53 - Loaded previous session config from vPAWconf.inf
+2025-06-10 17:11:55 - User chose to reuse previous session config: y
+2025-06-10 17:11:55 - Checking modules and Azure CLI presence
+2025-06-10 17:11:58 - Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 17:11:58 - Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 17:11:58 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 17:12:00 - Auto-selected session host bicep file: vPAW-Deploy-SessionHost.bicep
+2025-06-10 17:12:03 - Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-10 17:12:07 - Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-10 17:12:08 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 17:12:14 - Prompted: Enter the user's UPN (userUPN):  Value: andrew@kemponline.co.uk
+2025-06-10 17:12:17 - Prompted: Enter the first name of the user (userFirstName):  Value: Andy
+2025-06-10 17:12:19 - Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 17:12:28 - Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-10 17:12:29 - Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-10 17:12:38 - Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-10 17:12:38 - Admin credentials entered (password not logged)
+2025-06-10 17:12:40 - Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-10 17:12:41 - Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-10 17:12:41 - Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-10 17:12:44 - Registration key generated (expires 2025-06-11T16:12:41Z)
+2025-06-10 17:12:44 - Summary displayed
+2025-06-10 17:12:48 - User chose to deploy: y
+2025-06-10 17:12:50 - Session host VM 'vPAW-AndrewKemp' already exists. Skipping Bicep deployment.
+2025-06-10 17:12:51 - Session host VM 'vPAW-AndyKemp' already exists. Skipping Bicep deployment.
+2025-06-10 17:12:52 - Assigned andrew@kemponline.co.uk to session host vPAW-AndrewKemp using Update-AzWvdSessionHost
+2025-06-10 17:12:52 - Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndyKemp using Update-AzWvdSessionHost
+2025-06-10 17:12:58 - Added andrew@kemponline.co.uk (ObjectId: f647124a-7747-4a80-aa75-bcc107c83cc8) to vPAW Users group
+2025-06-10 17:12:58 - Added adm_andrew.kemp@kempy.onmicrosoft.com (ObjectId: d1755715-fe19-4f7d-a7a2-037f2d71647c) to vPAW Users group
+2025-06-10 17:13:01 - Device extension attributes set for all devices with displayName starting with 'vPAW'
+2025-06-10 17:13:03 - Host pool registration key invalidated
+2025-06-10 17:13:03 - Session parameters saved to vPAWconf.inf
+2025-06-10 17:13:03 - Workflow completed
