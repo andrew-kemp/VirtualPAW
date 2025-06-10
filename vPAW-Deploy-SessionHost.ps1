@@ -8,6 +8,7 @@
     - Supports deploying one or more session hosts, collecting user details per host, setting admin credentials, DNS, and prep scripts.
     - Generates and invalidates host pool registration key for secure deployment.
     - Assigns users to their personal session hosts.
+    - Optionally adds users to vPAW Users/Admins groups based on selection and .inf configuration.
     - Logs all major activities, prompts, and errors for traceability.
     - Persists session config for future ease of use.
 .DESCRIPTION
@@ -57,7 +58,11 @@ $fields = @(
     @{Name="VNetName";Prompt="Virtual network name";Var="vNetName"},
     @{Name="SubnetName";Prompt="Subnet name";Var="subnetName"},
     @{Name="DefaultPrefix";Prompt="Session host prefix";Var="sessionHostPrefix"},
-    @{Name="BicepTemplateFile";Prompt="Bicep template file";Var="bicepTemplateFile"}
+    @{Name="BicepTemplateFile";Prompt="Bicep template file";Var="bicepTemplateFile"},
+    @{Name="vPAWUsersGroupDisplayName";Prompt="vPAW Users group display name";Var="vPAWUsersGroupDisplayName"},
+    @{Name="vPAWUsersGroupObjectId";Prompt="vPAW Users group objectId";Var="vPAWUsersGroupObjectId"},
+    @{Name="vPAWAdminsGroupDisplayName";Prompt="vPAW Admins group display name";Var="vPAWAdminsGroupDisplayName"},
+    @{Name="vPAWAdminsGroupObjectId";Prompt="vPAW Admins group objectId";Var="vPAWAdminsGroupObjectId"}
 )
 
 # --- Logging Function ---
@@ -326,7 +331,7 @@ try {
 } catch {}
 if (-not $graphLoggedIn) {
     Write-Host "Connecting to Microsoft Graph..." -ForegroundColor Yellow
-    Connect-MgGraph -Scopes "Group.Read.All, Application.Read.All, Policy.ReadWrite.ConditionalAccess"
+    Connect-MgGraph -Scopes "User.ReadWrite.All, Group.ReadWrite.All, Directory.ReadWrite.All, Application.Read.All, Policy.ReadWrite.ConditionalAccess"
     $mgContext = Get-MgContext
     Write-Host "Connected to Microsoft Graph as $($mgContext.Account)" -ForegroundColor Cyan
     Write-Log "Connected to Microsoft Graph as $($mgContext.Account)"
@@ -363,6 +368,14 @@ if (-not $skipPrompts) {
     $subnetName = Prompt-RequiredParam "Enter the subnet name: "
     $sessionHostPrefix = Prompt-OptionalParam "Enter the session host prefix" "vPAW"
     $bicepTemplateFile = Select-SessionHostBicepFile -excludeFile $lastBicepFile
+    $vPAWUsersGroupDisplayName = Prompt-OptionalParam "Enter vPAW Users group display name" "vPAW Users"
+    $vPAWUsersGroupObjectId = Prompt-RequiredParam "Enter vPAW Users group objectId: "
+    $vPAWAdminsGroupDisplayName = Prompt-OptionalParam "Enter vPAW Admins group display name" "vPAW Admins"
+    $vPAWAdminsGroupObjectId = Prompt-RequiredParam "Enter vPAW Admins group objectId: "
+    $sessionParams.vPAWUsersGroupDisplayName = $vPAWUsersGroupDisplayName
+    $sessionParams.vPAWUsersGroupObjectId = $vPAWUsersGroupObjectId
+    $sessionParams.vPAWAdminsGroupDisplayName = $vPAWAdminsGroupDisplayName
+    $sessionParams.vPAWAdminsGroupObjectId = $vPAWAdminsGroupObjectId
 } else {
     $chosenSub = @{ id = $sessionParams.SubscriptionId; name = $sessionParams.SubscriptionName }
     $resourceGroup = $sessionParams.ResourceGroup
@@ -372,6 +385,10 @@ if (-not $skipPrompts) {
     $subnetName = $sessionParams.SubnetName
     $sessionHostPrefix = $sessionParams.DefaultPrefix
     $bicepTemplateFile = Select-SessionHostBicepFile -excludeFile $sessionParams.BicepTemplateFile
+    $vPAWUsersGroupDisplayName = $sessionParams.vPAWUsersGroupDisplayName
+    $vPAWUsersGroupObjectId = $sessionParams.vPAWUsersGroupObjectId
+    $vPAWAdminsGroupDisplayName = $sessionParams.vPAWAdminsGroupDisplayName
+    $vPAWAdminsGroupObjectId = $sessionParams.vPAWAdminsGroupObjectId
     az account set --subscription $chosenSub.id
     Select-AzSubscription -SubscriptionId $chosenSub.id
     Write-Log "Using settings from ${confFile}: Subscription=$($chosenSub.name), ResourceGroup=$resourceGroup, ..."
@@ -457,12 +474,29 @@ Write-Host ("dns1: ".PadRight(30) + "$dns1") -ForegroundColor Green
 Write-Host ("dns2: ".PadRight(30) + "$dns2") -ForegroundColor Green
 Write-Host ("sessionHostPrepScriptUrl: ".PadRight(30) + "$sessionHostPrepScriptUrl") -ForegroundColor Green
 Write-Host ("bicepTemplateFile: ".PadRight(30) + "$bicepTemplateFile") -ForegroundColor Green
+Write-Host ("vPAW Users group: ".PadRight(30) + "$vPAWUsersGroupDisplayName ($vPAWUsersGroupObjectId)") -ForegroundColor Green
+Write-Host ("vPAW Admins group: ".PadRight(30) + "$vPAWAdminsGroupDisplayName ($vPAWAdminsGroupObjectId)") -ForegroundColor Green
 Write-Host "User assignments to be created:" -ForegroundColor Green
 foreach ($u in $userDetails) {
     Write-Host ("- $($u.FirstName) $($u.LastName) ($($u.UPN))") -ForegroundColor Green
 }
 Write-Host "===========================" -ForegroundColor Magenta
 Write-Log "Summary displayed"
+
+#############################
+#                           #
+#  Group Assignment Prompt  #
+#                           #
+#############################
+Write-Banner "Group Assignment Prompt"
+Write-Host "Would you like to add each user to a group?"
+Write-Host "  1) vPAW Users group only"
+Write-Host "  2) vPAW Admins group only"
+Write-Host "  3) Both groups"
+Write-Host "  4) Neither"
+Write-Host "Select an option (1-4) [Default: 1]:" -ForegroundColor Green -NoNewline
+$groupChoice = Read-Host
+if ([string]::IsNullOrWhiteSpace($groupChoice)) { $groupChoice = "1" }
 
 #############################
 #                           #
@@ -509,7 +543,7 @@ if ($deployNow -eq "y") {
             Write-Log "Deployment command executed for $($user.UPN) successfully"
         } catch {
             Write-Host "`nDeployment command failed for $($user.UPN)." -ForegroundColor Red
-            Write-Log "Deployment command failed for $($user.UPN): $_"
+            Write-Log "Deployment command failed for $($user.UPN): $($_)"
         }
     }
 
@@ -535,6 +569,45 @@ if ($deployNow -eq "y") {
         } catch {
             Write-Host "Failed to assign $($user.UPN) to session host $sessionHostName." -ForegroundColor Red
             Write-Log ("Failed to assign {0} to session host {1}: {2}" -f $user.UPN, $sessionHostName, $_)
+        }
+    }
+
+    #############################
+    #                           #
+    #       Add to Groups       #
+    #                           #
+    #############################
+    Write-Banner "AAD Group Membership"
+    foreach ($user in $userDetails) {
+        $userUpn = $user.UPN
+        try {
+            $mgUser = Get-MgUser -UserId $userUpn -ErrorAction Stop
+            $userObjectId = $mgUser.Id
+        } catch {
+            Write-Host "Failed to locate user $userUpn in Entra ID: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Log ("Failed to locate user {0} in Entra ID: {1}" -f $userUpn, $_.Exception.Message)
+            continue
+        }
+
+        if ($groupChoice -eq "1" -or $groupChoice -eq "3") {
+            try {
+                Add-MgGroupMember -GroupId $vPAWUsersGroupObjectId -DirectoryObjectId $userObjectId -ErrorAction Stop
+                Write-Host "Added $userUpn to vPAW Users group." -ForegroundColor Cyan
+                Write-Log "Added $userUpn to vPAW Users group"
+            } catch {
+                Write-Host "Failed to add $userUpn to vPAW Users group: $($_.Exception.Message)" -ForegroundColor Red
+                Write-Log ("Failed to add {0} to vPAW Users group: {1}" -f $userUpn, $_.Exception.Message)
+            }
+        }
+        if ($groupChoice -eq "2" -or $groupChoice -eq "3") {
+            try {
+                Add-MgGroupMember -GroupId $vPAWAdminsGroupObjectId -DirectoryObjectId $userObjectId -ErrorAction Stop
+                Write-Host "Added $userUpn to vPAW Admins group." -ForegroundColor Cyan
+                Write-Log "Added $userUpn to vPAW Admins group"
+            } catch {
+                Write-Host "Failed to add $userUpn to vPAW Admins group: $($_.Exception.Message)" -ForegroundColor Red
+                Write-Log ("Failed to add {0} to vPAW Admins group: {1}" -f $userUpn, $_.Exception.Message)
+            }
         }
     }
 } else {
@@ -571,6 +644,10 @@ $sessionParams = @{
     SubnetName = $subnetName
     DefaultPrefix = $sessionHostPrefix
     BicepTemplateFile = $bicepTemplateFile
+    vPAWUsersGroupDisplayName = $vPAWUsersGroupDisplayName
+    vPAWUsersGroupObjectId = $vPAWUsersGroupObjectId
+    vPAWAdminsGroupDisplayName = $vPAWAdminsGroupDisplayName
+    vPAWAdminsGroupObjectId = $vPAWAdminsGroupObjectId
     SavedAt = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 }
 $sessionParams | ConvertTo-Json | Set-Content $confFile
