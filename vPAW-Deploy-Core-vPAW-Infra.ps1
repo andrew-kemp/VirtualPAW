@@ -1,23 +1,45 @@
 <#
 .SYNOPSIS
-    Full interactive setup and post-deployment workflow for VirtualPAW (Privileged Access Workstation) in Azure.
+    Interactive deployment and post-deployment workflow for VirtualPAW (Privileged Access Workstation) in Azure.
+    This script guides you through environment preparation, Azure/Entra group selection or creation, Bicep template selection, 
+    deployment, RBAC assignment, Conditional Access exclusions, and optional session host deployment.
 
 .DESCRIPTION
-    - Interactive selection/creation of subscription/resource group, infra params, Entra groups.
-    - Ensures authentication with Azure CLI, Az PowerShell, Microsoft Graph.
-    - Deploys infra using Bicep template; passes Key Vault name as parameter, Bicep creates it.
-    - Sets up AAD groups for RBAC, configures RBAC for AVD app groups, updates Session Desktop's friendly name.
-    - Automates exclusion of storage apps from Conditional Access policies.
-    - Ensures Key Vault access policy for current user before secret ops.
-    - Stores/retrieves Host Pool registration key in Key Vault (after deployment).
-    - Saves all deployment params and secret info to vPAWConf.inf for reuse.
+    - Ensures required modules and tools are installed, and authenticates to Azure and Microsoft Graph.
+    - Walks you through subscription and resource group selection/creation.
+    - Handles vPAW user/admin Entra group selection or creation.
+    - Collects key deployment parameters and stores them for reuse.
+    - Selects and deploys the correct Bicep template for core infrastructure.
+    - Assigns RBAC to AVD application groups and updates Session Desktop friendly name.
+    - Automates exclusion of storage applications from Conditional Access policies.
+    - Offers post-deployment automation for vPAW session host.
 
 .NOTES
-    - Expects Bicep template and Az/Graph modules installed.
+    - Requires Bicep template file for deployment.
+    - Requires Azure CLI, Az PowerShell, and Microsoft.Graph modules.
+    - Logs actions to vPAWDeploy.log for audit and troubleshooting.
 #>
 
-# ---- Logging Function ----
+function Write-Banner {
+    param([string]$Heading)
+    $bannerWidth = 51
+    $innerWidth = $bannerWidth - 2
+    $bannerLine = ('#' * $bannerWidth)
+    $emptyLine = ('#' + (' ' * ($bannerWidth - 2)) + '#')
+    $centered = $Heading.Trim()
+    $centered = $centered.PadLeft(($centered.Length + $innerWidth) / 2).PadRight($innerWidth)
+    Write-Host ""
+    Write-Host $bannerLine -ForegroundColor Cyan
+    Write-Host $emptyLine -ForegroundColor Cyan
+    Write-Host ("#"+$centered+"#") -ForegroundColor Cyan
+    Write-Host $emptyLine -ForegroundColor Cyan
+    Write-Host $bannerLine -ForegroundColor Cyan
+    Write-Host ""
+}
+
+# --- Logging Function ---
 function Write-Log {
+    # Writes informative, warning, or error messages to a log file.
     param (
         [string]$Message,
         [string]$Level = "INFO"
@@ -28,75 +50,270 @@ function Write-Log {
     Add-Content -Path $logPath -Value $entry
 }
 
-function Ensure-AzConnection {
-    try { $null = Get-AzContext -ErrorAction Stop }
-    catch { 
-        Write-Host "Re-authenticating to Azure..." -ForegroundColor Yellow
-        Write-Log "Re-authenticating to Azure..." "WARN"
-        Connect-AzAccount | Out-Null 
+#############################
+#                           #
+#   Environment Preparation #
+#                           #
+#############################
+Clear-Host
+Write-Banner "Environment Preparation"
+# Ensure required modules are present
+$modules = @("Microsoft.Graph")
+foreach ($mod in $modules) {
+    $isInstalled = Get-Module -ListAvailable -Name $mod
+    if (-not $isInstalled) {
+        Write-Host "Installing module $mod..." -ForegroundColor Yellow
+        Write-Log "Installing module $mod..." "WARN"
+        Install-Module $mod -Scope CurrentUser -Force -AllowClobber
+        Write-Host "Please restart your PowerShell session to use $mod safely." -ForegroundColor Cyan
+        Write-Log "Installed $mod. Please restart PowerShell session." "ERROR"
+        exit 0
     }
 }
 
-function Ensure-MgGraphConnection {
-    try { $null = Get-MgContext -ErrorAction Stop }
-    catch { 
-        Write-Host "Re-authenticating to Microsoft Graph..." -ForegroundColor Yellow
-        Write-Log "Re-authenticating to Microsoft Graph..." "WARN"
-        Connect-MgGraph -Scopes "Group.Read.All, Application.Read.All, Policy.ReadWrite.ConditionalAccess" 
-    }
+if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
+    Write-Host "ERROR: Azure CLI (az) is not installed. Please install it from https://learn.microsoft.com/en-us/cli/azure/install-azure-cli and log in using 'az login'." -ForegroundColor Red
+    Write-Log "Azure CLI not installed." "ERROR"
+    exit 1
 }
 
-function Get-ValidatedKeyVaultName {
-    param ([string]$DefaultPrefix = "vPAW")
-    $defaultKvName = ("${DefaultPrefix}keyvault").ToLower()
-    Write-Host "Enter the Key Vault name (3-24 chars, lowercase letters/numbers/dashes, start/end with letter/number)" -ForegroundColor Green
-    Write-Host "Default: $defaultKvName"
-    $keyVaultName = Read-Host
-    if ([string]::IsNullOrEmpty($keyVaultName)) { $keyVaultName = $defaultKvName }
-    $keyVaultName = $keyVaultName.Trim().ToLower()
-    if ($keyVaultName.Length -lt 3 -or $keyVaultName.Length -gt 24) { 
-        Write-Host "Invalid length." -ForegroundColor Red
-        Write-Log "Key Vault name invalid length: $keyVaultName" "WARN"
-        return $keyVaultName
+if (-not (Get-Module -ListAvailable -Name Az.Accounts)) {
+    Write-Host "ERROR: Az.Accounts module is not installed. Please run 'Install-Module Az.Accounts -Scope CurrentUser'." -ForegroundColor Red
+    Write-Log "Az.Accounts module not installed." "ERROR"
+    exit 1
+}
+
+Import-Module Az.Accounts -ErrorAction SilentlyContinue
+
+# Authenticate to Azure CLI
+$azLoggedIn = $false
+try {
+    $azAccount = az account show 2>$null | ConvertFrom-Json
+    if ($azAccount) {
+        $azLoggedIn = $true
+        Write-Host "Already logged in to Azure CLI as $($azAccount.user.name)" -ForegroundColor Cyan
+        Write-Log "Already logged in to Azure CLI as $($azAccount.user.name)"
     }
-    if ($keyVaultName -notmatch '^[a-z0-9-]+$') { 
-        Write-Host "Invalid chars." -ForegroundColor Red
-        Write-Log "Key Vault name invalid chars: $keyVaultName" "WARN"
-        return $keyVaultName
+} catch {}
+if (-not $azLoggedIn) {
+    Write-Host "Logging in to Azure CLI..." -ForegroundColor Yellow
+    Write-Log "Logging in to Azure CLI..." "WARN"
+    az login | Out-Null
+    $azAccount = az account show | ConvertFrom-Json
+    Write-Host "Logged in to Azure CLI as $($azAccount.user.name)" -ForegroundColor Cyan
+    Write-Log "Logged in to Azure CLI as $($azAccount.user.name)"
+}
+
+# Authenticate to Az PowerShell
+$azPSLoggedIn = $false
+try {
+    $azContext = Get-AzContext
+    if ($azContext) {
+        $azPSLoggedIn = $true
+        Write-Host "Already connected to Az PowerShell as $($azContext.Account)" -ForegroundColor Cyan
+        Write-Log "Already connected to Az PowerShell as $($azContext.Account)"
     }
-    if ($keyVaultName -notmatch '^[a-z0-9].*[a-z0-9]$') { 
-        Write-Host "Must start/end with letter/number." -ForegroundColor Red
-        Write-Log "Key Vault name does not start/end with letter/number: $keyVaultName" "WARN"
-        return $keyVaultName
+} catch {}
+if (-not $azPSLoggedIn) {
+    Write-Host "Connecting to Az PowerShell..." -ForegroundColor Yellow
+    Write-Log "Connecting to Az PowerShell..." "WARN"
+    Connect-AzAccount | Out-Null
+    $azContext = Get-AzContext
+    Write-Host "Connected to Az PowerShell as $($azContext.Account)" -ForegroundColor Cyan
+    Write-Log "Connected to Az PowerShell as $($azContext.Account)"
+}
+
+# Authenticate to Microsoft Graph
+$graphLoggedIn = $false
+try {
+    $mgContext = Get-MgContext
+    if ($mgContext) {
+        $graphLoggedIn = $true
+        Write-Host "Already connected to Microsoft Graph as $($mgContext.Account)" -ForegroundColor Cyan
+        Write-Log "Already connected to Microsoft Graph as $($mgContext.Account)"
     }
-    if ($keyVaultName -match '--') { 
-        Write-Host "No consecutive dashes." -ForegroundColor Red
-        Write-Log "Key Vault name has consecutive dashes: $keyVaultName" "WARN"
-        return $keyVaultName
+} catch {}
+if (-not $graphLoggedIn) {
+    Write-Host "Connecting to Microsoft Graph..." -ForegroundColor Yellow
+    Write-Log "Connecting to Microsoft Graph..." "WARN"
+    Connect-MgGraph -Scopes "Group.Read.All, Application.Read.All, Policy.ReadWrite.ConditionalAccess"
+    $mgContext = Get-MgContext
+    Write-Host "Connected to Microsoft Graph as $($mgContext.Account)" -ForegroundColor Cyan
+    Write-Log "Connected to Microsoft Graph as $($mgContext.Account)"
+}
+Write-Log "Environment preparation complete."
+Start-Sleep 1
+
+#############################
+#                           #
+#    Subscription Selection #
+#                           #
+#############################
+Clear-Host
+Write-Banner "Subscription Selection"
+Write-Host "Fetching your Azure subscriptions..." -ForegroundColor Yellow
+Write-Log "Fetching Azure subscriptions..."
+$subs = az account list --output json | ConvertFrom-Json
+if (-not $subs) { Write-Host "No subscriptions found for this account." -ForegroundColor Red; Write-Log "No subscriptions found for this account." "ERROR"; exit 1 }
+for ($i = 0; $i -lt $subs.Count; $i++) { Write-Host "$($i+1)) $($subs[$i].name)  ($($subs[$i].id))" -ForegroundColor Cyan }
+Write-Host "`nEnter the number of the subscription to use:" -ForegroundColor Green
+$subChoice = Read-Host
+$chosenSub = $subs[$subChoice - 1]
+Write-Host "Using subscription: $($chosenSub.name) ($($chosenSub.id))" -ForegroundColor Yellow
+Write-Log "Using subscription: $($chosenSub.name) ($($chosenSub.id))"
+az account set --subscription $chosenSub.id
+Select-AzSubscription -SubscriptionId $chosenSub.id
+Write-Log "Subscription selection complete."
+Start-Sleep 1
+
+# --- TENANT ID ---
+try {
+    $tenantId = (Get-AzContext).Tenant.Id
+} catch {
+    $tenantId = (az account show --query tenantId -o tsv)
+}
+
+#############################
+#                           #
+#   Resource Group Setup    #
+#                           #
+#############################
+Clear-Host
+Write-Banner "Resource Group Setup"
+Write-Host "Would you like to use an existing resource group, or create a new one?" -ForegroundColor Green
+Write-Host "1) Existing" -ForegroundColor Yellow
+Write-Host "2) New" -ForegroundColor Yellow
+$rgChoice = Read-Host
+if ($rgChoice -eq "1") {
+    $rgs = az group list --output json | ConvertFrom-Json
+    if (-not $rgs) {
+        Write-Host "No resource groups found. You must create a new one." -ForegroundColor Red
+        Write-Log "No resource groups found. Creating new one." "WARN"
+        $rgChoice = "2"
+    } else {
+        for ($i = 0; $i -lt $rgs.Count; $i++) { Write-Host "$($i+1)) $($rgs[$i].name)  ($($rgs[$i].location))" -ForegroundColor Cyan }
+        Write-Host "`nEnter the number of the resource group to use:" -ForegroundColor Green
+        $rgSelect = Read-Host
+        $resourceGroup = $rgs[$rgSelect - 1].name
+        $resourceGroupLocation = $rgs[$rgSelect - 1].location
+        Write-Host "Using resource group: $resourceGroup" -ForegroundColor Yellow
+        Write-Log "Using resource group: $resourceGroup ($resourceGroupLocation)"
     }
-    Write-Host "Checking availability of Key Vault name '$keyVaultName'..." -ForegroundColor Cyan
-    Write-Log "Checking Key Vault name availability: $keyVaultName"
-    try {
-        $azResult = az keyvault check-name --name $keyVaultName | ConvertFrom-Json
-        if (-not $azResult.nameAvailable) {
-            Write-Host "Name in use, try again." -ForegroundColor Red
-            Write-Log "Key Vault name already in use: $keyVaultName" "WARN"
-            return $keyVaultName
-        } else {
-            Write-Host "Key Vault name '$keyVaultName' is available and will be created by Bicep deployment." -ForegroundColor Green
-            Write-Log "Key Vault name '$keyVaultName' is available."
-            return $keyVaultName
+}
+if ($rgChoice -eq "2") {
+    Write-Host "Enter a name for the new resource group:" -ForegroundColor Green
+    $resourceGroup = Read-Host
+    Write-Host "Enter the Azure region for the new resource group (e.g., uksouth, eastus):" -ForegroundColor Green
+    $resourceGroupLocation = Read-Host
+    Write-Host "Creating resource group $resourceGroup in $resourceGroupLocation..." -ForegroundColor Yellow
+    Write-Log "Creating resource group $resourceGroup in $resourceGroupLocation..."
+    az group create --name $resourceGroup --location $resourceGroupLocation | Out-Null
+    Write-Host "Resource group $resourceGroup created." -ForegroundColor Green
+    Write-Log "Resource group $resourceGroup created."
+}
+Write-Log "Resource group setup complete."
+Start-Sleep 1
+
+#############################
+#                           #
+# Entra Group Selection/    #
+#        Creation           #
+#                           #
+#############################
+Clear-Host
+Write-Banner "Entra Group Selection/Creation"
+
+function Create-AADGroup([string]$groupName) {
+    # Create a new Azure AD security group
+    $mailNickname = $groupName -replace '\s',''
+    $groupParams = @{
+        DisplayName     = $groupName
+        MailEnabled     = $false
+        MailNickname    = $mailNickname
+        SecurityEnabled = $true
+    }
+    $newGroup = New-MgGroup @groupParams
+    Write-Host "Created group '$($newGroup.DisplayName)' with Object ID: $($newGroup.Id)" -ForegroundColor Cyan
+    Write-Log "Created AAD group: $($newGroup.DisplayName) ObjectId: $($newGroup.Id)"
+    return $newGroup
+}
+
+function Select-AADGroupBySubstring([string]$searchSubstring, [string]$role) {
+    # Present filtered AAD groups for user selection
+    Write-Host "Searching for Azure AD groups containing '$searchSubstring' for $role..." -ForegroundColor Green
+    Write-Log "Searching for Azure AD groups containing '$searchSubstring' for $role..."
+    $allGroups = Get-MgGroup -All
+    $filteredGroups = $allGroups | Where-Object { $_.DisplayName -match $searchSubstring }
+    if (-not $filteredGroups) {
+        Write-Host "No groups found containing '$searchSubstring' in the display name." -ForegroundColor Red
+        Write-Log "No groups found containing '$searchSubstring' in the display name." "WARN"
+        return $null
+    }
+    Write-Host "Select the $role group from the list below:" -ForegroundColor Cyan
+    $i = 1
+    foreach ($group in $filteredGroups) {
+        Write-Host "$i) $($group.DisplayName) (ObjectId: $($group.Id))" -ForegroundColor Cyan
+        $i++
+    }
+    Write-Host "Enter the number of the $role group to use" -ForegroundColor Green
+    $selection = Read-Host
+    $selectedGroup = $filteredGroups[$selection - 1]
+    Write-Host "Selected group: $($selectedGroup.DisplayName)" -ForegroundColor Cyan
+    Write-Log "Selected AAD group for: $($selectedGroup.DisplayName) ObjectId: $($selectedGroup.Id)"
+    return $selectedGroup
+}
+
+Write-Host "vPAW User and Admin Entra groups" -ForegroundColor Magenta
+Write-Host ""
+Write-Host "1) Use existing Entra groups" -ForegroundColor Yellow
+Write-Host "2) Create new Entra groups" -ForegroundColor Yellow
+Write-Host ""
+$groupsChoice = Read-Host "Select an option (Default: 1)"
+if ([string]::IsNullOrEmpty($groupsChoice)) { $groupsChoice = "1" }
+
+if ($groupsChoice -eq "1") {
+    Write-Host "Enter search substring for group names (e.g. 'PAW')" -ForegroundColor Green
+    $groupSearch = Read-Host
+    $userGroup = $null
+    while (-not $userGroup) {
+        $userGroup = Select-AADGroupBySubstring -searchSubstring $groupSearch -role "Users (Contributors)"
+        if (-not $userGroup) {
+            Write-Host "Please try a different search or ensure the group exists." -ForegroundColor Red
+            Write-Host "Enter search substring for Users group" -ForegroundColor Green
+            $groupSearch = Read-Host
         }
-    } catch {
-        Write-Host "Validation of Key Vault has failed (gateway timeout or other error). Please continue with caution. If the name exists the deployment will fail." -ForegroundColor Yellow
-        Write-Log "Key Vault validation failed for $keyVaultName. Exception: $($_.Exception.Message)" "ERROR"
-        return $keyVaultName
     }
+    $adminGroup = $null
+    while (-not $adminGroup) {
+        $adminGroup = Select-AADGroupBySubstring -searchSubstring $groupSearch -role "Admins (Elevated Contributors)"
+        if (-not $adminGroup) {
+            Write-Host "Please try a different search or ensure the group exists." -ForegroundColor Red
+            Write-Host "Enter search substring for Admins group" -ForegroundColor Green
+            $groupSearch = Read-Host
+        }
+    }
+} else {
+    Write-Host "Enter a name for the new Users (Contributors) group" -ForegroundColor Green
+    $userGroupName = Read-Host
+    $userGroup = Create-AADGroup $userGroupName
+    Write-Host "Enter a name for the new Admins (Elevated Contributors) group" -ForegroundColor Green
+    $adminGroupName = Read-Host
+    $adminGroup = Create-AADGroup $adminGroupName
 }
+Write-Log "Entra group setup complete."
+Start-Sleep 1
+
+#############################
+#                           #
+# Deployment Parameter Input#
+#                           #
+#############################
+Clear-Host
+Write-Banner "Deployment Parameter Input"
 
 function Get-ValidatedStorageAccountName {
+    # Validate and check storage account name availability, suggest alternates if needed
     while ($true) {
-        #Clear-Host
         Write-Host "Enter the storage account name (3-24 chars, lowercase letters and numbers only)" -ForegroundColor Green
         $storageAccountName = Read-Host
         $storageAccountName = $storageAccountName.Trim()
@@ -132,294 +349,78 @@ function Get-ValidatedStorageAccountName {
     }
 }
 
-function Select-BicepTemplateFile {
-    #Clear-Host
-    $bicepFiles = Get-ChildItem -Path . -File | Where-Object { $_.Name -match '\.bicep$' -or $_.Name -match '\.BICEP$' }
-    if (-not $bicepFiles) { Write-Host "No .bicep template files found." -ForegroundColor Red; Write-Log "No .bicep template files found." "ERROR"; return $null }
-    Write-Host "Select a Bicep template file:" -ForegroundColor Cyan
-    for ($i = 0; $i -lt $bicepFiles.Count; $i++) { Write-Host "$($i + 1)) $($bicepFiles[$i].Name)" -ForegroundColor Cyan }
+function Select-CoreInfraBicepFile {
+    # Prefer CoreInfra bicep file, else allow user selection
+    $allBicepFiles = Get-ChildItem -Path . -File | Where-Object { $_.Name -match '\.bicep$' -or $_.Name -match '\.BICEP$' }
+    $pattern = '(?i)(vPAW[\s\-]*)?Core[\s\-]*Infra'
+    $coreInfraFiles = $allBicepFiles | Where-Object { $_.Name -match $pattern }
+
+    if ($coreInfraFiles.Count -eq 1) {
+        $file = $coreInfraFiles[0].Name
+        Write-Host "Found core infra Bicep file: $file"
+        Write-Host "Use this file? (y/n) [default: y]" -ForegroundColor Green -NoNewline
+        $resp = Read-Host
+        if ([string]::IsNullOrWhiteSpace($resp) -or $resp -eq "y") {
+            return $file
+        }
+    } elseif ($coreInfraFiles.Count -gt 1) {
+        Write-Host "Multiple core infra Bicep files found:" -ForegroundColor Cyan
+        for ($i = 0; $i -lt $coreInfraFiles.Count; $i++) {
+            Write-Host "$($i + 1)) $($coreInfraFiles[$i].Name)" -ForegroundColor Cyan
+        }
+        Write-Host "Select one by number or press Enter to list all bicep files:" -ForegroundColor Green -NoNewline
+        $choice = Read-Host
+        if ($choice -match '^\d+$' -and $choice -gt 0 -and $choice -le $coreInfraFiles.Count) {
+            return $coreInfraFiles[$choice - 1].Name
+        }
+    }
+
+    if (-not $allBicepFiles -or $allBicepFiles.Count -eq 0) {
+        Write-Host "No .bicep template files found." -ForegroundColor Red
+        return $null
+    }
+    Write-Host "Available .bicep files:" -ForegroundColor Cyan
+    for ($i = 0; $i -lt $allBicepFiles.Count; $i++) {
+        Write-Host "$($i + 1)) $($allBicepFiles[$i].Name)" -ForegroundColor Cyan
+    }
     Write-Host "Enter the number:" -ForegroundColor Green
     while ($true) {
         $selection = Read-Host
-        if ($selection -match '^\d+$' -and $selection -gt 0 -and $selection -le $bicepFiles.Count) {
-            $chosenFile = $bicepFiles[$selection - 1].Name
+        if ($selection -match '^\d+$' -and $selection -gt 0 -and $selection -le $allBicepFiles.Count) {
+            $chosenFile = $allBicepFiles[$selection - 1].Name
             Write-Host "Selected Bicep template: $chosenFile" -ForegroundColor Cyan
-            Write-Log "Selected Bicep template: $chosenFile"
             return $chosenFile
-        } else { Write-Host "Invalid selection." -ForegroundColor Red; Write-Log "Invalid bicep template selection: $selection" "WARN" }
-    }
-}
-
-function Create-AADGroup([string]$groupName) {
-    $mailNickname = $groupName -replace '\s',''
-    $groupParams = @{
-        DisplayName     = $groupName
-        MailEnabled     = $false
-        MailNickname    = $mailNickname
-        SecurityEnabled = $true
-    }
-    $newGroup = New-MgGroup @groupParams
-    Write-Host "Created group '$($newGroup.DisplayName)' with Object ID: $($newGroup.Id)" -ForegroundColor Cyan
-    Write-Log "Created AAD group: $($newGroup.DisplayName) ObjectId: $($newGroup.Id)"
-    return $newGroup
-}
-
-function Select-AADGroupBySubstring([string]$searchSubstring, [string]$role) {
-    Write-Host "Searching for Azure AD groups containing '$searchSubstring' for $role..." -ForegroundColor Green
-    Write-Log "Searching for Azure AD groups containing '$searchSubstring' for $role..."
-    $allGroups = Get-MgGroup -All
-    $filteredGroups = $allGroups | Where-Object { $_.DisplayName -match $searchSubstring }
-    if (-not $filteredGroups) {
-        Write-Host "No groups found containing '$searchSubstring' in the display name." -ForegroundColor Red
-        Write-Log "No groups found containing '$searchSubstring' in the display name." "WARN"
-        return $null
-    }
-    Write-Host "Select the $role group from the list below:" -ForegroundColor Cyan
-    $i = 1
-    foreach ($group in $filteredGroups) {
-        Write-Host "$i) $($group.DisplayName) (ObjectId: $($group.Id))" -ForegroundColor Cyan
-        $i++
-    }
-    Write-Host "Enter the number of the $role group to use" -ForegroundColor Green
-    $selection = Read-Host
-    $selectedGroup = $filteredGroups[$selection - 1]
-    Write-Host "Selected group: $($selectedGroup.DisplayName)" -ForegroundColor Cyan
-    Write-Log "Selected AAD group for: $($selectedGroup.DisplayName) ObjectId: $($selectedGroup.Id)"
-    return $selectedGroup
-}
-
-function Ensure-RoleAssignment {
-    param (
-        [Parameter(Mandatory=$true)][string]$ObjectId,
-        [Parameter(Mandatory=$true)][string]$RoleDefinitionName,
-        [Parameter(Mandatory=$true)][string]$Scope
-    )
-    $ra = Get-AzRoleAssignment -ObjectId $ObjectId -RoleDefinitionName $RoleDefinitionName -Scope $Scope -ErrorAction SilentlyContinue
-    if (-not $ra) {
-        Write-Host "Assigning '$RoleDefinitionName' to object $ObjectId at scope $Scope..." -ForegroundColor Cyan
-        Write-Log "Assigning '$RoleDefinitionName' to object $ObjectId at scope $Scope..."
-        New-AzRoleAssignment -ObjectId $ObjectId -RoleDefinitionName $RoleDefinitionName -Scope $Scope | Out-Null
-    } else {
-        Write-Host "'$RoleDefinitionName' already assigned to object $ObjectId at scope $Scope." -ForegroundColor Green
-        Write-Log "'$RoleDefinitionName' already assigned to object $ObjectId at scope $Scope."
-    }
-}
-
-# ------------- Main Script Logic Starts Here -------------
-
-#Clear-Host
-Write-Host "Preparing environment: checking modules and connecting to services..." -ForegroundColor Cyan
-Write-Log "Preparing environment: checking modules and connecting to services..."
-
-$modules = @("Microsoft.Graph")
-foreach ($mod in $modules) {
-    $isInstalled = Get-Module -ListAvailable -Name $mod
-    if (-not $isInstalled) {
-        Write-Host "Installing module $mod..." -ForegroundColor Yellow
-        Write-Log "Installing module $mod..." "WARN"
-        Install-Module $mod -Scope CurrentUser -Force -AllowClobber
-        Write-Host "Please restart your PowerShell session to use $mod safely." -ForegroundColor Cyan
-        Write-Log "Installed $mod. Please restart PowerShell session." "ERROR"
-        exit 0
-    }
-}
-
-if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
-    Write-Host "ERROR: Azure CLI (az) is not installed. Please install it from https://learn.microsoft.com/en-us/cli/azure/install-azure-cli and log in using 'az login'." -ForegroundColor Red
-    Write-Log "Azure CLI not installed." "ERROR"
-    exit 1
-}
-
-if (-not (Get-Module -ListAvailable -Name Az.Accounts)) {
-    Write-Host "ERROR: Az.Accounts module is not installed. Please run 'Install-Module Az.Accounts -Scope CurrentUser'." -ForegroundColor Red
-    Write-Log "Az.Accounts module not installed." "ERROR"
-    exit 1
-}
-
-Import-Module Az.Accounts -ErrorAction SilentlyContinue
-
-#Clear-Host
-$azLoggedIn = $false
-try {
-    $azAccount = az account show 2>$null | ConvertFrom-Json
-    if ($azAccount) {
-        $azLoggedIn = $true
-        Write-Host "Already logged in to Azure CLI as $($azAccount.user.name)" -ForegroundColor Cyan
-        Write-Log "Already logged in to Azure CLI as $($azAccount.user.name)"
-    }
-} catch {}
-if (-not $azLoggedIn) {
-    Write-Host "Logging in to Azure CLI..." -ForegroundColor Yellow
-    Write-Log "Logging in to Azure CLI..." "WARN"
-    az login | Out-Null
-    $azAccount = az account show | ConvertFrom-Json
-    Write-Host "Logged in to Azure CLI as $($azAccount.user.name)" -ForegroundColor Cyan
-    Write-Log "Logged in to Azure CLI as $($azAccount.user.name)"
-}
-
-$azPSLoggedIn = $false
-try {
-    $azContext = Get-AzContext
-    if ($azContext) {
-        $azPSLoggedIn = $true
-        Write-Host "Already connected to Az PowerShell as $($azContext.Account)" -ForegroundColor Cyan
-        Write-Log "Already connected to Az PowerShell as $($azContext.Account)"
-    }
-} catch {}
-if (-not $azPSLoggedIn) {
-    Write-Host "Connecting to Az PowerShell..." -ForegroundColor Yellow
-    Write-Log "Connecting to Az PowerShell..." "WARN"
-    Connect-AzAccount | Out-Null
-    $azContext = Get-AzContext
-    Write-Host "Connected to Az PowerShell as $($azContext.Account)" -ForegroundColor Cyan
-    Write-Log "Connected to Az PowerShell as $($azContext.Account)"
-}
-
-$graphLoggedIn = $false
-try {
-    $mgContext = Get-MgContext
-    if ($mgContext) {
-        $graphLoggedIn = $true
-        Write-Host "Already connected to Microsoft Graph as $($mgContext.Account)" -ForegroundColor Cyan
-        Write-Log "Already connected to Microsoft Graph as $($mgContext.Account)"
-    }
-} catch {}
-if (-not $graphLoggedIn) {
-    Write-Host "Connecting to Microsoft Graph..." -ForegroundColor Yellow
-    Write-Log "Connecting to Microsoft Graph..." "WARN"
-    Connect-MgGraph -Scopes "Group.Read.All, Application.Read.All, Policy.ReadWrite.ConditionalAccess"
-    $mgContext = Get-MgContext
-    Write-Host "Connected to Microsoft Graph as $($mgContext.Account)" -ForegroundColor Cyan
-    Write-Log "Connected to Microsoft Graph as $($mgContext.Account)"
-}
-
-#Clear-Host
-Write-Host "Fetching your Azure subscriptions..." -ForegroundColor Yellow
-Write-Log "Fetching Azure subscriptions..."
-$subs = az account list --output json | ConvertFrom-Json
-if (-not $subs) { Write-Host "No subscriptions found for this account." -ForegroundColor Red; Write-Log "No subscriptions found for this account." "ERROR"; exit 1 }
-for ($i = 0; $i -lt $subs.Count; $i++) { Write-Host "$($i+1)) $($subs[$i].name)  ($($subs[$i].id))" -ForegroundColor Cyan }
-Write-Host "`nEnter the number of the subscription to use:" -ForegroundColor Green
-$subChoice = Read-Host
-$chosenSub = $subs[$subChoice - 1]
-Write-Host "Using subscription: $($chosenSub.name) ($($chosenSub.id))" -ForegroundColor Yellow
-Write-Log "Using subscription: $($chosenSub.name) ($($chosenSub.id))"
-az account set --subscription $chosenSub.id
-Ensure-AzConnection
-Select-AzSubscription -SubscriptionId $chosenSub.id
-
-#Clear-Host
-Write-Host "Would you like to use an existing resource group, or create a new one?" -ForegroundColor Green
-Write-Host "1) Existing" -ForegroundColor Yellow
-Write-Host "2) New" -ForegroundColor Yellow
-$rgChoice = Read-Host
-if ($rgChoice -eq "1") {
-    $rgs = az group list --output json | ConvertFrom-Json
-    if (-not $rgs) {
-        Write-Host "No resource groups found. You must create a new one." -ForegroundColor Red
-        Write-Log "No resource groups found. Creating new one." "WARN"
-        $rgChoice = "2"
-    } else {
-        for ($i = 0; $i -lt $rgs.Count; $i++) { Write-Host "$($i+1)) $($rgs[$i].name)  ($($rgs[$i].location))" -ForegroundColor Cyan }
-        Write-Host "`nEnter the number of the resource group to use:" -ForegroundColor Green
-        $rgSelect = Read-Host
-        $resourceGroup = $rgs[$rgSelect - 1].name
-        $resourceGroupLocation = $rgs[$rgSelect - 1].location
-        Write-Host "Using resource group: $resourceGroup" -ForegroundColor Yellow
-        Write-Log "Using resource group: $resourceGroup ($resourceGroupLocation)"
-    }
-}
-if ($rgChoice -eq "2") {
-    Write-Host "Enter a name for the new resource group:" -ForegroundColor Green
-    $resourceGroup = Read-Host
-    Write-Host "Enter the Azure region for the new resource group (e.g., uksouth, eastus):" -ForegroundColor Green
-    $resourceGroupLocation = Read-Host
-    Write-Host "Creating resource group $resourceGroup in $resourceGroupLocation..." -ForegroundColor Yellow
-    Write-Log "Creating resource group $resourceGroup in $resourceGroupLocation..."
-    az group create --name $resourceGroup --location $resourceGroupLocation | Out-Null
-    Write-Host "Resource group $resourceGroup created." -ForegroundColor Green
-    Write-Log "Resource group $resourceGroup created."
-}
-
-#Clear-Host
-Write-Host "vPAW User and Admin Entra groups" -ForegroundColor Magenta
-Write-Log "vPAW User and Admin Entra groups"
-Write-Host ""
-Write-Host "1) Use existing Entra groups" -ForegroundColor Yellow
-Write-Host "2) Create new Entra groups" -ForegroundColor Yellow
-Write-Host ""
-$groupsChoice = Read-Host "Select an option (Default: 1)"
-if ([string]::IsNullOrEmpty($groupsChoice)) { $groupsChoice = "1" }
-#Clear-Host
-
-if ($groupsChoice -eq "1") {
-    Write-Host "Enter search substring for group names (e.g. 'PAW')" -ForegroundColor Green
-    $groupSearch = Read-Host
-    $userGroup = $null
-    while (-not $userGroup) {
-        #Clear-Host
-        $userGroup = Select-AADGroupBySubstring -searchSubstring $groupSearch -role "Users (Contributors)"
-        if (-not $userGroup) {
-            Write-Host "Please try a different search or ensure the group exists." -ForegroundColor Red
-            Write-Log "No Users group found with substring $groupSearch" "WARN"
-            Write-Host "Enter search substring for Users group" -ForegroundColor Green
-            $groupSearch = Read-Host
+        } else {
+            Write-Host "Invalid selection." -ForegroundColor Red
         }
     }
-    $adminGroup = $null
-    while (-not $adminGroup) {
-        #Clear-Host
-        $adminGroup = Select-AADGroupBySubstring -searchSubstring $groupSearch -role "Admins (Elevated Contributors)"
-        if (-not $adminGroup) {
-            Write-Host "Please try a different search or ensure the group exists." -ForegroundColor Red
-            Write-Log "No Admins group found with substring $groupSearch" "WARN"
-            Write-Host "Enter search substring for Admins group" -ForegroundColor Green
-            $groupSearch = Read-Host
-        }
-    }
-} else {
-    Write-Host "Enter a name for the new Users (Contributors) group" -ForegroundColor Green
-    $userGroupName = Read-Host
-    #Clear-Host
-    $userGroup = Create-AADGroup $userGroupName
-    Write-Host "Enter a name for the new Admins (Elevated Contributors) group" -ForegroundColor Green
-    $adminGroupName = Read-Host
-    #Clear-Host
-    $adminGroup = Create-AADGroup $adminGroupName
 }
 
-#Clear-Host
 Write-Host "Enter the resource prefix (Default: vPAW)" -ForegroundColor Green
 $DefaultPrefix = Read-Host
 if ([string]::IsNullOrEmpty($DefaultPrefix)) { $DefaultPrefix = "vPAW" }
 
-#Clear-Host
 Write-Host "Enter the VNet address prefix (Default: 192.168.250.0/24)" -ForegroundColor Green
 $vNetAddressPrefix = Read-Host
 if ([string]::IsNullOrEmpty($vNetAddressPrefix)) { $vNetAddressPrefix = "192.168.250.0/24" }
 
-#Clear-Host
 Write-Host "Enter the Subnet address prefix (Default: 192.168.250.0/24)" -ForegroundColor Green
 $subnetAddressPrefix = Read-Host
 if ([string]::IsNullOrEmpty($subnetAddressPrefix)) { $subnetAddressPrefix = "192.168.250.0/24" }
 
 $storageAccountName = Get-ValidatedStorageAccountName
-$keyVaultName = Get-ValidatedKeyVaultName -DefaultPrefix $DefaultPrefix
+$bicepTemplateFile = Select-CoreInfraBicepFile
 
-Write-Host "Key Vault $keyVaultName will be created by the Bicep deployment." -ForegroundColor Cyan
-Write-Log "Key Vault $keyVaultName will be created by the Bicep deployment."
-
-$bicepTemplateFile = Select-BicepTemplateFile
-
-# ---- Additional Names for INF ----
+# Additional Names for INF
 $hostPoolName        = "$DefaultPrefix-HostPool"
 $workspaceName       = "$DefaultPrefix-Workspace"
 $appGroupName        = "$DefaultPrefix-AppGroup"
 $vNetName            = "$DefaultPrefix-vNet"
 $subnetName          = "$DefaultPrefix-Subnet"
 
-# --- Save parameters to vPAWConf.inf for later use, including new values
+# Save parameters for reuse
 $vPAWConf = @{
+    TenantId              = $tenantId
     SubscriptionId        = $chosenSub.id
     SubscriptionName      = $chosenSub.name
     ResourceGroup         = $resourceGroup
@@ -428,7 +429,6 @@ $vPAWConf = @{
     VNetAddressPrefix     = $vNetAddressPrefix
     SubnetAddressPrefix   = $subnetAddressPrefix
     StorageAccountName    = $storageAccountName
-    KeyVaultName          = $keyVaultName
     UsersGroupId          = $userGroup.Id
     UsersGroupName        = $userGroup.DisplayName
     AdminsGroupId         = $adminGroup.Id
@@ -445,11 +445,20 @@ $vPAWConfPath = Join-Path -Path $PSScriptRoot -ChildPath "vPAWConf.inf"
 $vPAWConf | ConvertTo-Json | Out-File -Encoding UTF8 -FilePath $vPAWConfPath
 Write-Host "`nAll parameters saved for later use in $vPAWConfPath" -ForegroundColor Green
 Write-Log "All parameters saved for later use in $vPAWConfPath"
+Write-Log "Deployment parameter input complete."
+Start-Sleep 1
 
-#Clear-Host
+#############################
+#                           #
+# Bicep Template Deployment #
+#                           #
+#############################
+Clear-Host
+Write-Banner "Bicep Template Deployment"
 Write-Host ""
 Write-Host "-----------------------------" -ForegroundColor Magenta
 Write-Host "Deployment Parameter Summary:" -ForegroundColor Magenta
+Write-Host "TenantId: $tenantId" -ForegroundColor Yellow
 Write-Host "Subscription: $($chosenSub.name) ($($chosenSub.id))" -ForegroundColor Yellow
 Write-Host "Resource Group: $resourceGroup" -ForegroundColor Yellow
 Write-Host "Resource Group Location: $resourceGroupLocation" -ForegroundColor Yellow
@@ -457,7 +466,6 @@ Write-Host "DefaultPrefix: $DefaultPrefix" -ForegroundColor Yellow
 Write-Host "vNetAddressPrefix: $vNetAddressPrefix" -ForegroundColor Yellow
 Write-Host "subnetAddressPrefix: $subnetAddressPrefix" -ForegroundColor Yellow
 Write-Host "storageAccountName: $storageAccountName" -ForegroundColor Yellow
-Write-Host "keyVaultName: $keyVaultName" -ForegroundColor Yellow
 Write-Host "bicepTemplateFile: $bicepTemplateFile" -ForegroundColor Yellow
 Write-Host "HostPoolName: $hostPoolName" -ForegroundColor Cyan
 Write-Host "WorkspaceName: $workspaceName" -ForegroundColor Cyan
@@ -483,7 +491,6 @@ Write-Host "Would you like to deploy the selected Bicep template now? (y/n)" -Fo
 $deployNow = Read-Host
 
 if ($deployNow -eq "y") {
-    ##Clear-Host
     Write-Host "Starting deployment..." -ForegroundColor Yellow
     Write-Log "Starting deployment..."
     $paramArgs = @(
@@ -495,8 +502,7 @@ if ($deployNow -eq "y") {
         "subnetAddressPrefix=$subnetAddressPrefix",
         "storageAccountName=$storageAccountName",
         "smbContributorsGroupId=$($userGroup.Id)",
-        "smbElevatedContributorsGroupId=$($adminGroup.Id)",
-        "keyVaultName=$keyVaultName"
+        "smbElevatedContributorsGroupId=$($adminGroup.Id)"
     )
     Write-Host "az deployment group create $($paramArgs -join ' ')" -ForegroundColor Gray
     Write-Log "az deployment group create $($paramArgs -join ' ')"
@@ -508,57 +514,54 @@ if ($deployNow -eq "y") {
     Write-Log "Deployment skipped by user."
     exit 0
 }
+Write-Log "Deployment section complete."
+Start-Sleep 1
 
-# --- Grant Key Vault Access Policy to Current User ---
-try {
-    $currentUser = (Get-AzContext).Account
-    $currentUserObjectId = (Get-AzADUser -UserPrincipalName $currentUser).Id
-    Set-AzKeyVaultAccessPolicy -VaultName $keyVaultName -ObjectId $currentUserObjectId -PermissionsToSecrets get,set,list
-    Write-Host "Assigned Key Vault access policy for $currentUser ($currentUserObjectId)." -ForegroundColor Green
-    Write-Log "Assigned Key Vault access policy for $currentUser ($currentUserObjectId)."
-} catch {
-    Write-Host "Failed to assign Key Vault access policy: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Log "Failed to assign Key Vault access policy: $($_.Exception.Message)" "ERROR"
-}
+#############################
+#                           #
+#     Post-Deployment:      #
+#   RBAC & AVD Config       #
+#                           #
+#############################
+Clear-Host
+Write-Banner "Post-Deployment: RBAC & AVD Config"
 
-# --- Host Pool Registration Key and Store in Key Vault ---
-try {
-    $regInfo = Get-AzWvdRegistrationInfo -ResourceGroupName $resourceGroup -HostPoolName $hostPoolName
-    if (-not $regInfo.ExpirationTime -or ($regInfo.ExpirationTime -lt (Get-Date))) {
-        Write-Host "No valid registration key found or expired. Generating new key..." -ForegroundColor Yellow
-        Write-Log "No valid Host Pool registration key found or expired. Generating new key..." "WARN"
-        $regInfo = New-AzWvdRegistrationInfo -ResourceGroupName $resourceGroup -HostPoolName $hostPoolName -ExpirationTime (Get-Date).AddDays(1)
-    } else {
-        Write-Host "Valid registration key found (expires $($regInfo.ExpirationTime))." -ForegroundColor Green
-        Write-Log "Valid Host Pool registration key found (expires $($regInfo.ExpirationTime))."
+function Ensure-AzConnection {
+    # Ensures connection to Az PowerShell
+    try { $null = Get-AzContext -ErrorAction Stop }
+    catch { 
+        Write-Host "Re-authenticating to Azure..." -ForegroundColor Yellow
+        Write-Log "Re-authenticating to Azure..." "WARN"
+        Connect-AzAccount | Out-Null 
     }
-    $secretValue = @{
-        RegistrationToken = $regInfo.Token
-        ExpiresOn         = $regInfo.ExpirationTime
-    } | ConvertTo-Json
-    Set-AzKeyVaultSecret -VaultName $keyVaultName -Name "HostPoolRegistrationKey" -Value $secretValue | Out-Null
-    Write-Host "Host Pool registration key stored in Key Vault '$keyVaultName' (secret: HostPoolRegistrationKey)" -ForegroundColor Green
-    Write-Log "Host Pool registration key stored in Key Vault '$keyVaultName' (secret: HostPoolRegistrationKey)"
-} catch {
-    Write-Host "Failed to retrieve/store Host Pool registration key: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Log "Failed to retrieve/store Host Pool registration key: $($_.Exception.Message)" "ERROR"
 }
 
-# --- ENSURE AZ POWERSHELL/GRAPH CONTEXT IS CORRECT POST-DEPLOYMENT ---
-#Clear-Host
-Write-Host "Ensuring PowerShell and Microsoft Graph context post-deployment..." -ForegroundColor Cyan
-Write-Log "Ensuring PowerShell and Microsoft Graph context post-deployment..."
-Ensure-AzConnection
-Select-AzSubscription -SubscriptionId $chosenSub.id
-Ensure-MgGraphConnection
+function Ensure-MgGraphConnection {
+    # Ensures connection to Microsoft Graph
+    try { $null = Get-MgContext -ErrorAction Stop }
+    catch { 
+        Write-Host "Re-authenticating to Microsoft Graph..." -ForegroundColor Yellow
+        Write-Log "Re-authenticating to Microsoft Graph..." "WARN"
+        Connect-MgGraph -Scopes "Group.Read.All, Application.Read.All, Policy.ReadWrite.ConditionalAccess" 
+    }
+}
 
-# --- POST-DEPLOYMENT: RBAC, Desktop, CA Exclusion ---
-#Clear-Host
-Write-Host "Assigning RBAC and configuring AVD resources..." -ForegroundColor Cyan
-Write-Log "Assigning RBAC and configuring AVD resources..."
-
-$userGroupId = $userGroup.Id
-$adminGroupId = $adminGroup.Id
+function Ensure-RoleAssignment {
+    param (
+        [Parameter(Mandatory=$true)][string]$ObjectId,
+        [Parameter(Mandatory=$true)][string]$RoleDefinitionName,
+        [Parameter(Mandatory=$true)][string]$Scope
+    )
+    $ra = Get-AzRoleAssignment -ObjectId $ObjectId -RoleDefinitionName $RoleDefinitionName -Scope $Scope -ErrorAction SilentlyContinue
+    if (-not $ra) {
+        Write-Host "Assigning '$RoleDefinitionName' to object $ObjectId at scope $Scope..." -ForegroundColor Cyan
+        Write-Log "Assigning '$RoleDefinitionName' to object $ObjectId at scope $Scope..."
+        New-AzRoleAssignment -ObjectId $ObjectId -RoleDefinitionName $RoleDefinitionName -Scope $Scope | Out-Null
+    } else {
+        Write-Host "'$RoleDefinitionName' already assigned to object $ObjectId at scope $Scope." -ForegroundColor Green
+        Write-Log "'$RoleDefinitionName' already assigned to object $ObjectId at scope $Scope."
+    }
+}
 
 Ensure-AzConnection
 Select-AzSubscription -SubscriptionId $chosenSub.id
@@ -574,10 +577,12 @@ if (-not $appGroup) {
 }
 $appGroupPath = $appGroup.Id
 
+$userGroupId = $userGroup.Id
+$adminGroupId = $adminGroup.Id
+
 Ensure-RoleAssignment -ObjectId $userGroupId -RoleDefinitionName "Desktop Virtualization User" -Scope $appGroupPath
 Ensure-RoleAssignment -ObjectId $adminGroupId -RoleDefinitionName "Desktop Virtualization User" -Scope $appGroupPath
 
-#Clear-Host
 Write-Host "Session Desktop friendly name configuration..." -ForegroundColor Cyan
 Write-Log "Session Desktop friendly name configuration..."
 $sessionDesktop = Get-AzWvdDesktop -ResourceGroupName $resourceGroup -ApplicationGroupName $appGroupName -Name "SessionDesktop" -ErrorAction SilentlyContinue
@@ -595,10 +600,17 @@ if ($sessionDesktop) {
     Write-Host "SessionDesktop not found in $appGroupName. Skipping friendly name update." -ForegroundColor Yellow
     Write-Log "SessionDesktop not found in $appGroupName. Skipping friendly name update." "WARN"
 }
+Write-Log "RBAC and AVD configuration complete."
+Start-Sleep 1
 
-#Clear-Host
-Write-Host "Configuring Storage App Conditional Access Exclusion..." -ForegroundColor Cyan
-Write-Log "Configuring Storage App Conditional Access Exclusion..."
+#############################
+#                           #
+# Conditional Access Policy  #
+#        Exclusion          #
+#                           #
+#############################
+Clear-Host
+Write-Banner "Conditional Access Policy Exclusion"
 Ensure-MgGraphConnection
 
 Write-Host "--------------------------------------" -ForegroundColor Magenta
@@ -642,7 +654,6 @@ Write-Host "AppId stored in `$CAExclude: $CAExclude" -ForegroundColor Cyan
 Write-Host "ObjectId: $ObjectId" -ForegroundColor Cyan
 Write-Log "Storage App selected: $($selectedApp.DisplayName) AppId: $CAExclude ObjectId: $ObjectId"
 
-#Clear-Host
 Write-Host "Reviewing Conditional Access policies..." -ForegroundColor Cyan
 Write-Log "Reviewing Conditional Access policies..."
 $policies = Get-MgIdentityConditionalAccessPolicy
@@ -687,7 +698,6 @@ foreach ($policy in $filteredPolicies) {
     }
 }
 
-#Clear-Host
 Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Green
 Write-Host "Please verify the CA exclusions and permissions in the Entra Portal." -ForegroundColor Green
 Write-Host ""
@@ -696,8 +706,17 @@ Write-Host "Go to: Azure Portal > App registrations > $($selectedApp.DisplayName
 Write-Host "This is required for openid, profile, and User.Read delegated permissions to be effective." -ForegroundColor Green
 Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Green
 Write-Log "Script completed. Please verify CA exclusions and grant admin consent for $($selectedApp.DisplayName) in Azure Portal."
+Write-Log "Conditional Access exclusion complete."
+Start-Sleep 1
 
-# --- Prompt to deploy a vPAW session host ---
+#############################
+#                           #
+#     vPAW Session Host     #
+#      Deployment (Opt)     #
+#                           #
+#############################
+Clear-Host
+Write-Banner "vPAW Session Host Deployment (Opt)"
 Write-Host ""
 Write-Host "Would you like to deploy a vPAW session host? (y/n)" -ForegroundColor Green
 $deploySessionHost = Read-Host
@@ -706,7 +725,6 @@ if ($deploySessionHost -eq "n") {
     Write-Host "Deployment complete." -ForegroundColor Green
     exit 0
 } elseif ($deploySessionHost -eq "y") {
-    # List all .ps1 files in the current directory
     $ps1Files = Get-ChildItem -Path . -File | Where-Object { $_.Extension -eq ".ps1" }
     if (-not $ps1Files) {
         Write-Host "No .ps1 files found in the current directory." -ForegroundColor Red
@@ -736,3 +754,7 @@ if ($deploySessionHost -eq "n") {
     Write-Host "Invalid input. Please enter 'y' or 'n'." -ForegroundColor Red
     exit 1
 }
+
+Write-Host "`n=== VirtualPAW Deployment Script Complete ===" -ForegroundColor Green
+Write-Host "Please verify all actions in Azure Portal as instructed." -ForegroundColor Yellow
+Write-Log "Script execution complete."

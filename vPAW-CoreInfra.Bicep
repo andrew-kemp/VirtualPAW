@@ -159,26 +159,3 @@ resource smbShareElevatedContributorAssignment 'Microsoft.Authorization/roleAssi
   }
 }
 
-resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
-  name: keyVaultName
-  location: resourceGroup().location
-  properties: {
-    tenantId: subscription().tenantId
-    sku: {
-      family: 'A'
-      name: 'standard'
-    }
-    accessPolicies: [ ]
-    enabledForDeployment: true
-    enabledForTemplateDeployment: true
-    enabledForDiskEncryption: true
-    publicNetworkAccess: 'Enabled'
-    networkAcls: {
-      defaultAction: 'Allow'
-      bypass: 'AzureServices'
-    }
-  }
-}
-
-output keyVaultName string = keyVault.name
-output keyVaultUri string = keyVault.properties.vaultUri

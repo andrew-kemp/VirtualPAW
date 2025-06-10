@@ -36,7 +36,7 @@ param dns1 string = ''
 param dns2 string = ''
 
 @description('URL of the SessionHostPrep.ps1 script')
-param sessionHostPrepScriptUrl string = 'https://raw.githubusercontent.com/andrew-kemp/AzureVirtualDesktop/refs/heads/main/02a-SessionHostPrep.ps1'
+param sessionHostPrepScriptUrl string = 'https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1'
 
 var sessionHostName = '${sessionHostPrefix}-${userFirstName}${userLastName}'
 var modulesURL = 'https://wvdportalstorageblob.blob.${environment().suffixes.storage}/galleryartifacts/Configuration_1.0.02797.442.zip'
