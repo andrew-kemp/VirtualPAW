@@ -764,3 +764,101 @@
 2025-06-10 20:25:11 [INFO] Policy 'Priv - Restrict Access to cPAW only' updated to exclude AppId 142fc31c-dd78-400c-b5c1-9d60b43777fd.
 2025-06-10 20:25:11 [INFO] Script completed. Please verify CA exclusions and grant admin consent for [Storage Account] vpawstorageaccount.file.core.windows.net in Azure Portal.
 2025-06-10 20:25:11 [INFO] Conditional Access exclusion complete.
+2025-06-10 20:46:15 [INFO] Script started by andrew
+2025-06-10 20:46:17 [INFO] Loaded previous session config from vPAWconf.inf
+2025-06-10 20:46:23 [INFO] User chose to reuse previous session config: y
+2025-06-10 20:46:24 [INFO] Checking modules and Azure CLI presence
+2025-06-10 20:46:31 [INFO] Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 20:46:31 [INFO] Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 20:46:31 [INFO] Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 20:46:57 [INFO] Auto-selected session host bicep file: vPAW-Deploy-SessionHost.bicep
+2025-06-10 20:47:00 [INFO] Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-10 20:47:20 [INFO] Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-10 20:47:24 [INFO] Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-10 20:47:29 [INFO] Prompted: Enter the user's UPN (userUPN):  Value: andrew@kemponline.co.uk
+2025-06-10 20:47:37 [INFO] Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-10 20:47:45 [INFO] Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-10 20:47:45 [INFO] Admin credentials entered (password not logged)
+2025-06-10 20:47:47 [INFO] Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-10 20:47:48 [INFO] Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-10 20:47:49 [INFO] Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-10 20:47:53 [INFO] Registration key generated (expires )
+2025-06-10 20:47:56 [INFO] Summary displayed
+2025-06-10 20:48:30 [INFO] Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 20:48:30 [INFO] Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 20:48:30 [INFO] Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 20:48:30 [INFO] Environment preparation complete.
+2025-06-10 20:48:31 [INFO] Fetching Azure subscriptions...
+2025-06-10 20:48:35 [INFO] Using subscription: Microsoft Azure Sponsorship (9ccc53d0-c424-42d0-8fd6-b48edcea12dd)
+2025-06-10 20:48:36 [INFO] Subscription selection complete.
+2025-06-10 20:48:57 [INFO] Creating resource group vPAW in uksouth...
+2025-06-10 20:49:00 [INFO] Resource group vPAW created.
+2025-06-10 20:49:00 [INFO] Resource group setup complete.
+2025-06-10 20:49:06 [INFO] Searching for Azure AD groups containing 'vPAW' for Users (Contributors)...
+2025-06-10 20:49:07 [INFO] Selected AAD group for: _Grp-vPAW-Users ObjectId: 12573206-bbc0-498d-b12d-7b5053ea63de
+2025-06-10 20:49:07 [INFO] Searching for Azure AD groups containing 'vPAW' for Admins (Elevated Contributors)...
+2025-06-10 20:49:09 [INFO] Selected AAD group for: _Grp-vPAW-Admins ObjectId: a6afe79a-4dba-4a5c-9b18-41cee3142b09
+2025-06-10 20:49:09 [INFO] Entra group setup complete.
+2025-06-10 20:49:21 [INFO] Checking storage account name availability: vpawstorage1
+2025-06-10 20:49:23 [INFO] Storage account name 'vpawstorage1' is available.
+2025-06-10 20:49:27 [INFO] All parameters saved for later use in C:\Scripts\GitHub\VirtualPAW\vPAWConf.inf
+2025-06-10 20:49:27 [INFO] Deployment parameter input complete.
+2025-06-10 20:49:28 [INFO] Deployment parameter summary displayed.
+2025-06-10 20:49:32 [INFO] Starting deployment...
+2025-06-10 20:49:32 [INFO] az deployment group create --resource-group vPAW --template-file vPAW-CoreInfra.Bicep --parameters DefaultPrefix=vPAW vNetAddressPrefix=192.168.250.0/24 subnetAddressPrefix=192.168.250.0/24 storageAccountName=vpawstorage1 smbContributorsGroupId=12573206-bbc0-498d-b12d-7b5053ea63de smbElevatedContributorsGroupId=a6afe79a-4dba-4a5c-9b18-41cee3142b09
+2025-06-10 20:50:10 [INFO] Deployment command executed.
+2025-06-10 20:50:10 [INFO] Deployment section complete.
+2025-06-10 20:50:13 [INFO] Checking for WVD Application Group: vPAW-AppGroup in resource group: vPAW
+2025-06-10 20:50:14 [INFO] Assigning 'Desktop Virtualization User' to object 12573206-bbc0-498d-b12d-7b5053ea63de at scope /subscriptions/9ccc53d0-c424-42d0-8fd6-b48edcea12dd/resourcegroups/vPAW/providers/Microsoft.DesktopVirtualization/applicationgroups/vPAW-AppGroup...
+2025-06-10 20:50:16 [INFO] Assigning 'Desktop Virtualization User' to object a6afe79a-4dba-4a5c-9b18-41cee3142b09 at scope /subscriptions/9ccc53d0-c424-42d0-8fd6-b48edcea12dd/resourcegroups/vPAW/providers/Microsoft.DesktopVirtualization/applicationgroups/vPAW-AppGroup...
+2025-06-10 20:53:43 [INFO] Already logged in to Azure CLI as andrew@kemponline.co.uk
+2025-06-10 20:53:43 [INFO] Already connected to Az PowerShell as andrew@kemponline.co.uk
+2025-06-10 20:53:43 [INFO] Already connected to Microsoft Graph as andrew@kemponline.co.uk
+2025-06-10 20:53:43 [INFO] Environment preparation complete.
+2025-06-10 20:53:44 [INFO] Fetching Azure subscriptions...
+2025-06-10 20:54:10 [INFO] Using subscription: Microsoft Azure Sponsorship (9ccc53d0-c424-42d0-8fd6-b48edcea12dd)
+2025-06-10 20:54:13 [INFO] Subscription selection complete.
+2025-06-10 20:54:21 [INFO] Creating resource group vPAW in uksouth...
+2025-06-10 20:54:24 [INFO] Resource group vPAW created.
+2025-06-10 20:54:24 [INFO] Resource group setup complete.
+2025-06-10 20:54:30 [INFO] Searching for Azure AD groups containing 'vPAW' for Users (Contributors)...
+2025-06-10 20:54:31 [INFO] Selected AAD group for: _Grp-vPAW-Users ObjectId: 12573206-bbc0-498d-b12d-7b5053ea63de
+2025-06-10 20:54:31 [INFO] Searching for Azure AD groups containing 'vPAW' for Admins (Elevated Contributors)...
+2025-06-10 20:54:32 [INFO] Selected AAD group for: _Grp-vPAW-Admins ObjectId: a6afe79a-4dba-4a5c-9b18-41cee3142b09
+2025-06-10 20:54:32 [INFO] Entra group setup complete.
+2025-06-10 20:54:49 [INFO] Checking storage account name availability: vpawstorageaccount
+2025-06-10 20:54:57 [INFO] Storage account name 'vpawstorageaccount' is available.
+2025-06-10 20:55:02 [INFO] All parameters saved for later use in C:\Scripts\GitHub\VirtualPAW\vPAWConf.inf
+2025-06-10 20:55:02 [INFO] Deployment parameter input complete.
+2025-06-10 20:55:03 [INFO] Deployment parameter summary displayed.
+2025-06-10 20:55:06 [INFO] Starting deployment...
+2025-06-10 20:55:06 [INFO] az deployment group create --resource-group vPAW --template-file vPAW-CoreInfra.Bicep --parameters DefaultPrefix=vPAW vNetAddressPrefix=192.168.250.0/24 subnetAddressPrefix=192.168.250.0/24 storageAccountName=vpawstorageaccount smbContributorsGroupId=12573206-bbc0-498d-b12d-7b5053ea63de smbElevatedContributorsGroupId=a6afe79a-4dba-4a5c-9b18-41cee3142b09
+2025-06-10 20:56:12 [INFO] Deployment command executed.
+2025-06-10 20:56:12 [INFO] Deployment section complete.
+2025-06-10 20:56:15 [INFO] Checking for WVD Application Group: vPAW-AppGroup in resource group: vPAW
+2025-06-10 20:56:15 [INFO] Assigning 'Desktop Virtualization User' to object 12573206-bbc0-498d-b12d-7b5053ea63de at scope /subscriptions/9ccc53d0-c424-42d0-8fd6-b48edcea12dd/resourcegroups/vPAW/providers/Microsoft.DesktopVirtualization/applicationgroups/vPAW-AppGroup...
+2025-06-10 20:56:21 [INFO] Assigning 'Desktop Virtualization User' to object a6afe79a-4dba-4a5c-9b18-41cee3142b09 at scope /subscriptions/9ccc53d0-c424-42d0-8fd6-b48edcea12dd/resourcegroups/vPAW/providers/Microsoft.DesktopVirtualization/applicationgroups/vPAW-AppGroup...
+2025-06-10 20:56:24 [INFO] Session Desktop friendly name configuration...
+2025-06-10 20:56:32 [INFO] Updating SessionDesktop friendly name to 'Kemponline vPAW'...
+2025-06-10 20:56:32 [INFO] RBAC and AVD configuration complete.
+2025-06-10 20:56:42 [INFO] User selected storage app: [Storage Account] vpawstorageaccount.file.core.windows.net (AppId: a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d)
+2025-06-10 20:56:42 [INFO] Storage App selected: [Storage Account] vpawstorageaccount.file.core.windows.net AppId: a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d ObjectId: 23796843-c39c-4026-82f3-c262a5ef71d5
+2025-06-10 20:56:43 [INFO] Conditional Access policies targeting ALL apps (excluding Microsoft Managed) enumerated.
+2025-06-10 20:56:43 [INFO] Updating policy '901 - Block Legacy Auth' (Id: a87a3ec0-842e-4b9b-8b43-640842c2fe22) to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d...
+2025-06-10 20:56:45 [INFO] Policy '901 - Block Legacy Auth' updated to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d.
+2025-06-10 20:56:45 [INFO] Updating policy '101 - MFA For All' (Id: 2b33bee0-e73d-4931-b2f5-a7ab44eba103) to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d...
+2025-06-10 20:56:46 [INFO] Policy '101 - MFA For All' updated to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d.
+2025-06-10 20:56:46 [INFO] Updating policy '102 - Sign in every day Personal Device' (Id: 0abf4b28-59a0-46fd-b5f8-27fc5082b4e6) to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d...
+2025-06-10 20:56:48 [INFO] Policy '102 - Sign in every day Personal Device' updated to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d.
+2025-06-10 20:56:48 [INFO] Updating policy '803 - Admin re-authenticate every 8Hrs' (Id: bcea941e-41d4-48b1-b551-913d4175c25a) to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d...
+2025-06-10 20:56:49 [INFO] Policy '803 - Admin re-authenticate every 8Hrs' updated to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d.
+2025-06-10 20:56:49 [INFO] Updating policy '101 - Passkey' (Id: 24765ef4-7357-4cd5-858b-007bd470a0bb) to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d...
+2025-06-10 20:56:51 [INFO] Policy '101 - Passkey' updated to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d.
+2025-06-10 20:56:51 [INFO] Updating policy '901 - Privileged Access (New)' (Id: 64f5531f-0a4c-4bac-addf-2e1b59ab4e4d) to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d...
+2025-06-10 20:56:52 [INFO] Policy '901 - Privileged Access (New)' updated to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d.
+2025-06-10 20:56:52 [WARN] Skipping Microsoft-managed policy 'Microsoft-managed: Multifactor authentication and reauthentication for risky sign-ins'; cannot update excluded apps.
+2025-06-10 20:56:52 [INFO] Updating policy 'Priv - Restrict Access to cPAW only' (Id: 1152d395-1fa4-4412-8699-32053bdea41f) to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d...
+2025-06-10 20:56:53 [INFO] Policy 'Priv - Restrict Access to cPAW only' updated to exclude AppId a0a4c111-efd0-441e-8f6e-e46f7f4d0e3d.
+2025-06-10 20:56:53 [INFO] Script completed. Please verify CA exclusions and grant admin consent for [Storage Account] vpawstorageaccount.file.core.windows.net in Azure Portal.
+2025-06-10 20:56:53 [INFO] Conditional Access exclusion complete.
+2025-06-10 21:13:40 [INFO] Script execution complete.

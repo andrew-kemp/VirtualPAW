@@ -13,7 +13,7 @@
     "StorageAccountName":  "vpawstorageaccount",
     "DefaultPrefix":  "vPAW",
     "UsersGroupName":  "_Grp-vPAW-Users",
-    "SavedAt":  "2025-06-10 20:22:57",
+    "SavedAt":  "2025-06-10 20:55:02",
     "BicepTemplateFile":  "vPAW-CoreInfra.Bicep",
     "ResourceGroup":  "vPAW",
     "SubscriptionName":  "Microsoft Azure Sponsorship",

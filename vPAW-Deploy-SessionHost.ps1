@@ -41,9 +41,11 @@ function Write-Banner {
 }
 
 #############################
+#                           #
 #   Config and Log Setup    #
+#                           #
 #############################
-Write-Banner "Config and Log Setup"
+# 
 $confFile = "vPAWconf.inf"
 $logFile = "vPAWSessionHost.log"
 $sessionParams = @{}
@@ -62,18 +64,184 @@ $fields = @(
     @{Name="vPAWAdminsGroupDisplayName";Prompt="vPAW Admins group display name";Var="vPAWAdminsGroupDisplayName"},
     @{Name="vPAWAdminsGroupObjectId";Prompt="vPAW Admins group objectId";Var="vPAWAdminsGroupObjectId"}
 )
-
 function Write-Log {
     param ([string]$Message)
     $timestamp = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
     Add-Content -Path $logFile -Value "$timestamp - $Message"
 }
 Write-Log "Script started by $env:USERNAME"
+Clear-Host
+
+###################################################
+#                                                 #
+#              Load Previous Session              #
+#                                                 #
+###################################################
+Write-Banner "Load Previous Session"
+$skipPrompts = $false
+$lastBicepFile = $null
+
+if (Test-Path $confFile) {
+    try {
+        $sessionParams = Get-Content $confFile -Raw | ConvertFrom-Json
+        $lastBicepFile = $sessionParams.BicepTemplateFile
+        Write-Host "Previous session configuration found:" -ForegroundColor Yellow
+        $sessionParams.PSObject.Properties | ForEach-Object {
+            Write-Host ("{0}: {1}" -f $_.Name, $_.Value) -ForegroundColor Cyan
+        }
+        Write-Log "Loaded previous session config from $confFile"
+        Write-Host "`nWould you like to use these settings? (y = use all, n = ignore, o = override some) [Default: y]" -ForegroundColor Green -NoNewline
+        $usePrev = Read-Host
+        if ([string]::IsNullOrWhiteSpace($usePrev)) { $usePrev = "y" }
+        Write-Log "User chose to reuse previous session config: $usePrev"
+        if ($usePrev -eq "y") {
+            $skipPrompts = $true
+        } elseif ($usePrev -eq "o") {
+            foreach ($field in $fields) {
+                $currentValue = $sessionParams[$field.Name]
+                if ($field.Name -eq "BicepTemplateFile") {
+                    Write-Host ("{0} [{1}] (will exclude this from selection): " -f $field.Prompt, $currentValue) -ForegroundColor Yellow
+                    $input = $null
+                } else {
+                    Write-Host ("{0} [{1}]: " -f $field.Prompt, $currentValue) -ForegroundColor Yellow -NoNewline
+                    $input = Read-Host
+                }
+                if (-not [string]::IsNullOrWhiteSpace($input)) {
+                    $sessionParams[$field.Name] = $input
+                    Write-Log "Field override: $($field.Name) set to $input"
+                } else {
+                    Write-Log "Field override: $($field.Name) kept as $currentValue"
+                }
+            }
+            $skipPrompts = $true
+        }
+    } catch {
+        Write-Host "Failed to parse $confFile. Will continue as normal." -ForegroundColor Red
+        Write-Log "Failed to parse $confFile"
+    }
+}
+Clear-Host
 
 
-#############################
-#   PAuse with Timeout      #
-#############################
+###################################################
+#                                                 #
+#    Prepare Environment & Connect to Services    #
+#                                                 #
+###################################################
+
+
+Write-Banner "Prepare Environment & Connect to Services"
+Write-Host "Checking modules and connecting to Az PowerShell and Microsoft Graph..." -ForegroundColor Cyan
+Write-Log "Checking modules and authenticating services"
+$modules = @(
+    "Microsoft.Graph.Authentication",
+    "Microsoft.Graph",
+    "Microsoft.Graph.Groups",
+    "Az.Accounts",
+    "Az.DesktopVirtualization"
+)
+foreach ($mod in $modules) {
+    if (-not (Get-Module -ListAvailable -Name $mod)) {
+        Write-Host "Installing module $mod..." -ForegroundColor Yellow
+        Install-Module $mod -Scope CurrentUser -Force -AllowClobber
+        Write-Host "Please restart your PowerShell session to use $mod safely." -ForegroundColor Cyan
+        Write-Log "Installed missing module $mod"
+        exit 0
+    }
+    Import-Module $mod -Force
+}
+
+# Ensure modules installed and import
+$modules = @("Microsoft.Graph", "Microsoft.Graph.Groups", "Az.Accounts", "Az.DesktopVirtualization")
+foreach ($mod in $modules) {
+    if (-not (Get-Module -ListAvailable -Name $mod)) {
+        Write-Host "Installing module $mod..." -ForegroundColor Yellow
+        Install-Module $mod -Scope CurrentUser -Force -AllowClobber
+        Write-Host "Please restart your PowerShell session to use $mod safely." -ForegroundColor Cyan
+        Write-Log "Installed missing module $mod"
+        exit 0
+    }
+    Import-Module $mod -Force
+}
+
+# Helper function to ensure Azure connection and context
+function Ensure-AzConnection {
+    param(
+        [string]$SubscriptionId
+    )
+    try {
+        $context = Get-AzContext
+        if (-not $context -or [string]::IsNullOrWhiteSpace($context.Account)) {
+            Write-Host "No Azure context found, connecting..." -ForegroundColor Yellow
+            if ($SubscriptionId) {
+                Connect-AzAccount -Subscription $SubscriptionId -ErrorAction Stop
+                Set-AzContext -SubscriptionId $SubscriptionId -ErrorAction Stop
+            } else {
+                Connect-AzAccount -ErrorAction Stop
+            }
+        } else {
+            Write-Host "Already connected to Azure as $($context.Account)" -ForegroundColor Cyan
+            if ($SubscriptionId -and $context.Subscription.Id -ne $SubscriptionId) {
+                Set-AzContext -SubscriptionId $SubscriptionId -ErrorAction Stop
+                Write-Host "Switched to subscription $SubscriptionId" -ForegroundColor Cyan
+            }
+        }
+    } catch {
+        Write-Host "Error connecting to Azure: $_" -ForegroundColor Red
+        throw
+    }
+}
+
+# Helper function for Microsoft Graph connection
+function Ensure-GraphConnection {
+    $graphScopes = @(
+        "User.ReadWrite.All",
+        "GroupMember.ReadWrite.All",
+        "Device.ReadWrite.All"
+    )
+    $mgContext = $null
+    try { $mgContext = Get-MgContext } catch {}
+    $missingScopes = if ($mgContext) { $graphScopes | Where-Object { $_ -notin $mgContext.Scopes } } else { $graphScopes }
+    if (-not $mgContext -or ($missingScopes.Count -gt 0)) {
+        Write-Host "Connecting to Microsoft Graph with required scopes..." -ForegroundColor Yellow
+        Connect-MgGraph -Scopes $graphScopes -ErrorAction Stop
+        $mgContext = Get-MgContext
+        Write-Host "Connected to Microsoft Graph as $($mgContext.Account)" -ForegroundColor Cyan
+        Write-Log "Connected to Microsoft Graph as $($mgContext.Account)"
+    } else {
+        Write-Host "Already connected to Microsoft Graph as $($mgContext.Account)" -ForegroundColor Cyan
+        Write-Log "Already connected to Microsoft Graph as $($mgContext.Account)"
+    }
+}
+
+# Set context if .inf already has needed details and skip resource selection if possible
+$missing = $requiredParams | Where-Object { -not ($sessionParams.PSObject.Properties.Name -contains $_) -or [string]::IsNullOrWhiteSpace($sessionParams.$_) }
+
+if ($skipPrompts -and $missing.Count -eq 0) {
+    $chosenSub = @{ id = $sessionParams.SubscriptionId; name = $sessionParams.SubscriptionName }
+    $resourceGroup = $sessionParams.ResourceGroup
+    $resourceGroupLocation = $sessionParams.ResourceGroupLocation
+    $hostPoolName = $sessionParams.HostPoolName
+    $vNetName = $sessionParams.VNetName
+    $subnetName = $sessionParams.SubnetName
+    $sessionHostPrefix = $sessionParams.DefaultPrefix
+    $vPAWUsersGroupDisplayName = $sessionParams.vPAWUsersGroupDisplayName
+    $vPAWUsersGroupObjectId = $sessionParams.vPAWUsersGroupObjectId
+    $vPAWAdminsGroupDisplayName = $sessionParams.vPAWAdminsGroupDisplayName
+    $vPAWAdminsGroupObjectId = $sessionParams.vPAWAdminsGroupObjectId
+    $bicepTemplateFile = $sessionParams.BicepTemplateFile
+
+    # Set Az PowerShell context to chosen subscription
+    Ensure-AzConnection -SubscriptionId $chosenSub.id
+
+    Write-Log "Using settings from ${confFile}: Subscription=$($chosenSub.name), ResourceGroup=$resourceGroup, ..."
+    $doResourcePrompt = $false
+} else {
+    $doResourcePrompt = $true
+}
+
+# Always check Graph connection before Graph commands
+Ensure-GraphConnection
 function Pause-With-Timeout {
     param (
         [int]$Seconds = 10
@@ -90,11 +258,12 @@ function Pause-With-Timeout {
     Clear-Host
 }
 
-
-#############################
-#   Prompting Functions     #
-#############################
-Write-Banner "Prompting Functions"
+###################################################
+#                                                 #
+#               Prompting Functions               #
+#                                                 #
+###################################################
+# Write-Banner "Prompting Functions"
 function Prompt-RequiredParam([string]$PromptText) {
     while ($true) {
         Write-Host $PromptText -ForegroundColor Cyan -NoNewline
@@ -132,10 +301,56 @@ function Prompt-OptionalParam([string]$PromptText, [string]$DefaultValue) {
     Write-Log "Prompted: $PromptText Value: $value"
     return $value
 }
+Clear-Host
+###################################################
+#                                                 #
+#            Subscription/Resource Sel            #
+#                                                 #
+###################################################
+if ($doResourcePrompt) {
+    Write-Banner "Subscription/Resource Sel"
+    Write-Host "Fetching your Azure subscriptions..." -ForegroundColor Yellow
+    $subs = az account list --output json 2>$null | ConvertFrom-Json
+    if (-not $subs) {
+        Write-Host "No subscriptions found for this account." -ForegroundColor Red
+        Write-Log "No subscriptions found for this account"
+        exit 1
+    }
+    for ($i = 0; $i -lt $subs.Count; $i++) {
+        Write-Host "$($i+1)) $($subs[$i].name)  ($($subs[$i].id))" -ForegroundColor Cyan
+    }
+    Write-Host "`nEnter the number of the subscription to use:" -ForegroundColor Green -NoNewline
+    $subChoice = Read-Host
+    $chosenSub = $subs[$subChoice - 1]
+    Write-Host "Using subscription: $($chosenSub.name) ($($chosenSub.id))" -ForegroundColor Yellow
+    Write-Log "Subscription: $($chosenSub.name) ($($chosenSub.id))"
 
-#############################
-#  Bicep File Selection     #
-#############################
+    az account set --subscription $chosenSub.id
+    Connect-AzAccount -Subscription $chosenSub.id
+    Select-AzSubscription -SubscriptionId $chosenSub.id
+
+    $resourceGroup = Prompt-RequiredParam "Enter the resource group name: "
+    $resourceGroupLocation = Prompt-RequiredParam "Enter the resource group location: "
+    $hostPoolName = Prompt-RequiredParam "Enter the host pool name: "
+    $vNetName = Prompt-RequiredParam "Enter the virtual network name: "
+    $subnetName = Prompt-RequiredParam "Enter the subnet name: "
+    $sessionHostPrefix = Prompt-OptionalParam "Enter the session host prefix" "vPAW"
+    $vPAWUsersGroupDisplayName = Prompt-OptionalParam "Enter vPAW Users group display name" "vPAW Users"
+    $vPAWUsersGroupObjectId = Prompt-RequiredParam "Enter vPAW Users group objectId: "
+    $vPAWAdminsGroupDisplayName = Prompt-OptionalParam "Enter vPAW Admins group display name" "vPAW Admins"
+    $vPAWAdminsGroupObjectId = Prompt-RequiredParam "Enter vPAW Admins group objectId: "
+    $bicepTemplateFile = $null # Let user select below
+    $sessionParams.vPAWUsersGroupDisplayName = $vPAWUsersGroupDisplayName
+    $sessionParams.vPAWUsersGroupObjectId = $vPAWUsersGroupObjectId
+    $sessionParams.vPAWAdminsGroupDisplayName = $vPAWAdminsGroupDisplayName
+    $sessionParams.vPAWAdminsGroupObjectId = $vPAWAdminsGroupObjectId
+}
+Clear-Host
+###################################################
+#                                                 #
+#              Bicep File Selection               #
+#                                                 #
+###################################################
 Write-Banner "Bicep File Selection"
 function Select-SessionHostBicepFile {
     param([string]$excludeFile = $null)
@@ -189,11 +404,13 @@ function Select-SessionHostBicepFile {
         }
     }
 }
-Pause-With-Timeout
-#############################
-#  Mask Sensitive Args      #
-#############################
-Write-Banner "Mask Sensitive Args"
+
+###################################################
+#                                                 #
+#               Mask Sensitive Args               #
+#                                                 #
+###################################################
+# Write-Banner "Mask Sensitive Args"
 function Mask-SensitiveArgs {
     param([array]$paramArgs)
     $masked = @()
@@ -208,202 +425,14 @@ function Mask-SensitiveArgs {
     }
     return $masked
 }
-Pause-With-Timeout
-#############################
-#   Load Previous Session   #
-#############################
-Write-Banner "Load Previous Session"
-$skipPrompts = $false
-$lastBicepFile = $null
-if (Test-Path $confFile) {
-    try {
-        $sessionParams = Get-Content $confFile -Raw | ConvertFrom-Json
-        $lastBicepFile = $sessionParams.BicepTemplateFile
-        Write-Host "Previous session configuration found:" -ForegroundColor Yellow
-        $sessionParams.PSObject.Properties | ForEach-Object {
-            Write-Host ("{0}: {1}" -f $_.Name, $_.Value) -ForegroundColor Cyan
-        }
-        Write-Log "Loaded previous session config from $confFile"
-        Write-Host "`nWould you like to use these settings? (y = use all, n = ignore, o = override some) [Default: y]" -ForegroundColor Green -NoNewline
-        $usePrev = Read-Host
-        if ([string]::IsNullOrWhiteSpace($usePrev)) { $usePrev = "y" }
-        Write-Log "User chose to reuse previous session config: $usePrev"
-        if ($usePrev -eq "y") {
-            $skipPrompts = $true
-        } elseif ($usePrev -eq "o") {
-            foreach ($field in $fields) {
-                $currentValue = $sessionParams[$field.Name]
-                if ($field.Name -eq "BicepTemplateFile") {
-                    Write-Host ("{0} [{1}] (will exclude this from selection): " -f $field.Prompt, $currentValue) -ForegroundColor Yellow
-                    $input = $null
-                } else {
-                    Write-Host ("{0} [{1}]: " -f $field.Prompt, $currentValue) -ForegroundColor Yellow -NoNewline
-                    $input = Read-Host
-                }
-                if (-not [string]::IsNullOrWhiteSpace($input)) {
-                    $sessionParams[$field.Name] = $input
-                    Write-Log "Field override: $($field.Name) set to $input"
-                } else {
-                    Write-Log "Field override: $($field.Name) kept as $currentValue"
-                }
-            }
-            $skipPrompts = $true
-        }
-    } catch {
-        Write-Host "Failed to parse $confFile. Will continue as normal." -ForegroundColor Red
-        Write-Log "Failed to parse $confFile"
-    }
-}
-Pause-With-Timeout
-#############################
-#   Prepare Environment     #
-#############################
-Write-Banner "Prepare Environment"
-Write-Host "Preparing environment: checking modules and connecting to services..." -ForegroundColor Cyan
-Write-Log "Checking modules and Azure CLI presence"
+Clear-Host
 
-$modules = @("Microsoft.Graph")
-foreach ($mod in $modules) {
-    $isInstalled = Get-Module -ListAvailable -Name $mod
-    if (-not $isInstalled) {
-        Write-Host "Installing module $mod..." -ForegroundColor Yellow
-        Install-Module $mod -Scope CurrentUser -Force -AllowClobber
-        Write-Host "Please restart your PowerShell session to use $mod safely." -ForegroundColor Cyan
-        Write-Log "Installed missing module $mod"
-        exit 0
-    }
-if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Groups)) {
-    Write-Host "Installing Microsoft.Graph.Groups module..." -ForegroundColor Yellow
-    Install-Module Microsoft.Graph.Groups -Scope CurrentUser -Force
-}
-Import-Module Microsoft.Graph.Groups -Force
-}
-if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
-    Write-Host "ERROR: Azure CLI (az) is not installed. Please install it from https://learn.microsoft.com/en-us/cli/azure/install-azure-cli and log in using 'az login'." -ForegroundColor Red
-    Write-Log "Azure CLI not installed"
-    exit 1
-}
-if (-not (Get-Module -ListAvailable -Name Az.Accounts)) {
-    Write-Host "ERROR: Az.Accounts module is not installed. Please run 'Install-Module Az.Accounts -Scope CurrentUser'." -ForegroundColor Red
-    Write-Log "Az.Accounts module not installed"
-    exit 1
-}
-Import-Module Az.Accounts -ErrorAction SilentlyContinue
-Pause-With-Timeout
-#############################
-#   Azure CLI & Graph Login #
-#############################
-Write-Banner "Azure CLI & Graph Login"
-$azLoggedIn = $false
-try {
-    $azAccount = az account show 2>$null | ConvertFrom-Json
-    if ($azAccount) {
-        $azLoggedIn = $true
-        Write-Host "Already logged in to Azure CLI as $($azAccount.user.name)" -ForegroundColor Cyan
-        Write-Log "Already logged in to Azure CLI as $($azAccount.user.name)"
-    }
-} catch {}
-if (-not $azLoggedIn) {
-    Write-Host "Logging in to Azure CLI..." -ForegroundColor Yellow
-    az login | Out-Null
-    $azAccount = az account show | ConvertFrom-Json
-    Write-Host "Logged in to Azure CLI as $($azAccount.user.name)" -ForegroundColor Cyan
-    Write-Log "Logged in to Azure CLI as $($azAccount.user.name)"
-}
 
-$azPSLoggedIn = $false
-try {
-    $azContext = Get-AzContext
-    if ($azContext) {
-        $azPSLoggedIn = $true
-        Write-Host "Already connected to Az PowerShell as $($azContext.Account)" -ForegroundColor Cyan
-        Write-Log "Already connected to Az PowerShell as $($azContext.Account)"
-    }
-} catch {}
-if (-not $azPSLoggedIn) {
-    Write-Host "Connecting to Az PowerShell..." -ForegroundColor Yellow
-    Connect-AzAccount | Out-Null
-    $azContext = Get-AzContext
-    Write-Host "Connected to Az PowerShell as $($azContext.Account)" -ForegroundColor Cyan
-    Write-Log "Connected to Az PowerShell as $($azContext.Account)"
-}
-
-$graphLoggedIn = $false
-try {
-    $mgContext = Get-MgContext
-    if ($mgContext) {
-        $graphLoggedIn = $true
-        Write-Host "Already connected to Microsoft Graph as $($mgContext.Account)" -ForegroundColor Cyan
-        Write-Log "Already connected to Microsoft Graph as $($mgContext.Account)"
-    }
-} catch {}
-if (-not $graphLoggedIn) {
-    Write-Host "Connecting to Microsoft Graph..." -ForegroundColor Yellow
-    $tenantId = $azAccount.tenantId
-    Connect-MgGraph -TenantId $tenantId -Scopes "User.ReadWrite.All, Group.ReadWrite.All, Directory.ReadWrite.All, Application.Read.All, Policy.ReadWrite.ConditionalAccess"
-    $mgContext = Get-MgContext
-    Write-Host "Connected to Microsoft Graph as $($mgContext.Account)" -ForegroundColor Cyan
-    Write-Log "Connected to Microsoft Graph as $($mgContext.Account)"
-}
-Pause-With-Timeout
-#############################
-# Subscription/Resource Sel #
-#############################
-Write-Banner "Subscription/Resource Sel"
-if (-not $skipPrompts) {
-    Write-Host "Fetching your Azure subscriptions..." -ForegroundColor Yellow
-    $subs = az account list --output json 2>$null | ConvertFrom-Json
-    if (-not $subs) {
-        Write-Host "No subscriptions found for this account." -ForegroundColor Red
-        Write-Log "No subscriptions found for this account"
-        exit 1
-    }
-    for ($i = 0; $i -lt $subs.Count; $i++) {
-        Write-Host "$($i+1)) $($subs[$i].name)  ($($subs[$i].id))" -ForegroundColor Cyan
-    }
-    Write-Host "`nEnter the number of the subscription to use:" -ForegroundColor Green -NoNewline
-    $subChoice = Read-Host
-    $chosenSub = $subs[$subChoice - 1]
-    Write-Host "Using subscription: $($chosenSub.name) ($($chosenSub.id))" -ForegroundColor Yellow
-    Write-Log "Subscription: $($chosenSub.name) ($($chosenSub.id))"
-    az account set --subscription $chosenSub.id
-    Select-AzSubscription -SubscriptionId $chosenSub.id
-    $resourceGroup = Prompt-RequiredParam "Enter the resource group name: "
-    $resourceGroupLocation = Prompt-RequiredParam "Enter the resource group location: "
-    $hostPoolName = Prompt-RequiredParam "Enter the host pool name: "
-    $vNetName = Prompt-RequiredParam "Enter the virtual network name: "
-    $subnetName = Prompt-RequiredParam "Enter the subnet name: "
-    $sessionHostPrefix = Prompt-OptionalParam "Enter the session host prefix" "vPAW"
-    $bicepTemplateFile = Select-SessionHostBicepFile -excludeFile $lastBicepFile
-    $vPAWUsersGroupDisplayName = Prompt-OptionalParam "Enter vPAW Users group display name" "vPAW Users"
-    $vPAWUsersGroupObjectId = Prompt-RequiredParam "Enter vPAW Users group objectId: "
-    $vPAWAdminsGroupDisplayName = Prompt-OptionalParam "Enter vPAW Admins group display name" "vPAW Admins"
-    $vPAWAdminsGroupObjectId = Prompt-RequiredParam "Enter vPAW Admins group objectId: "
-    $sessionParams.vPAWUsersGroupDisplayName = $vPAWUsersGroupDisplayName
-    $sessionParams.vPAWUsersGroupObjectId = $vPAWUsersGroupObjectId
-    $sessionParams.vPAWAdminsGroupDisplayName = $vPAWAdminsGroupDisplayName
-    $sessionParams.vPAWAdminsGroupObjectId = $vPAWAdminsGroupObjectId
-} else {
-    $chosenSub = @{ id = $sessionParams.SubscriptionId; name = $sessionParams.SubscriptionName }
-    $resourceGroup = $sessionParams.ResourceGroup
-    $resourceGroupLocation = $sessionParams.ResourceGroupLocation
-    $hostPoolName = $sessionParams.HostPoolName
-    $vNetName = $sessionParams.VNetName
-    $subnetName = $sessionParams.SubnetName
-    $sessionHostPrefix = $sessionParams.DefaultPrefix
-    $bicepTemplateFile = Select-SessionHostBicepFile -excludeFile $sessionParams.BicepTemplateFile
-    $vPAWUsersGroupDisplayName = $sessionParams.vPAWUsersGroupDisplayName
-    $vPAWUsersGroupObjectId = $sessionParams.vPAWUsersGroupObjectId
-    $vPAWAdminsGroupDisplayName = $sessionParams.vPAWAdminsGroupDisplayName
-    $vPAWAdminsGroupObjectId = $sessionParams.vPAWAdminsGroupObjectId
-    az account set --subscription $chosenSub.id
-    Select-AzSubscription -SubscriptionId $chosenSub.id
-    Write-Log "Using settings from ${confFile}: Subscription=$($chosenSub.name), ResourceGroup=$resourceGroup, ..."
-}
-Pause-With-Timeout
-#############################
-#  Session Host User Input  #
-#############################
+###################################################
+#                                                 #
+#             Session Host User Input             #
+#                                                 #
+###################################################
 Write-Banner "Session Host User Input"
 $hostCount = 1
 Write-Host "How many session hosts would you like to deploy? (1-4) [Default: 1]" -ForegroundColor Green -NoNewline
@@ -417,10 +446,13 @@ for ($i = 1; $i -le $hostCount; $i++) {
     $upn = Prompt-RequiredParam "Enter the user's UPN (userUPN): "
     $userDetails += [PSCustomObject]@{ FirstName = $firstName; LastName = $lastName; UPN = $upn }
 }
-Pause-With-Timeout
-#############################
-#   Admin & DNS Inputs      #
-#############################
+Clear-Host
+
+###################################################
+#                                                 #
+#               Admin & DNS Inputs                #
+#                                                 #
+###################################################
 Write-Banner "Admin & DNS Inputs"
 Write-Host "=== ADMIN CREDENTIALS ===" -ForegroundColor Yellow
 $adminUsername = Prompt-OptionalParam "Enter the admin username for the session host (adminUsername)" "VPAW-Admin"
@@ -434,12 +466,15 @@ $dns2 = Prompt-OptionalParam "Enter the secondary DNS server (dns2, leave blank 
 
 Write-Host "=== SESSION HOST PREP SCRIPT URL ===" -ForegroundColor Yellow
 $sessionHostPrepScriptUrl = Prompt-OptionalParam "Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl)" "https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1"
-Pause-With-Timeout
-#############################
-# Hostpool Registration Key #
-#############################
+Clear-Host
+
+###################################################
+#                                                 #
+#            Hostpool Registration Key            #
+#                                                 #
+###################################################
 Write-Banner "Hostpool Registration Key"
-Write-Host "=== HOST POOL REGISTRATION KEY ===" -ForegroundColor Yellow
+Write-Host "=== Retreiving Registration Key ===" -ForegroundColor Yellow
 try {
     $expiry = (Get-Date).ToUniversalTime().AddDays(1).ToString("yyyy-MM-ddTHH:mm:ssZ")
     $regInfoJson = az desktopvirtualization hostpool update `
@@ -456,10 +491,16 @@ try {
     Write-Log "Failed to create registration key: $_"
     $hostPoolRegistrationInfoToken = Prompt-RequiredParam "Enter the registration key for the AVD host pool (hostPoolRegistrationInfoToken): "
 }
-Pause-With-Timeout
-#############################
-#      Summary Output       #
-#############################
+Clear-Host
+###################################################
+#                                                 #
+#                 Summary Output                  #
+#                                                 #
+###################################################
+$UsersGroupName  = $sessionParams.UsersGroupName
+$UsersGroupId    = $sessionParams.UsersGroupId
+$AdminsGroupName = $sessionParams.AdminsGroupName
+$AdminsGroupId   = $sessionParams.AdminsGroupId
 Write-Banner "Summary Output"
 Write-Host "========= SUMMARY =========" -ForegroundColor Magenta
 Write-Host ("Subscription: ".PadRight(30) + "$($chosenSub.name) ($($chosenSub.id))") -ForegroundColor Green
@@ -473,8 +514,8 @@ Write-Host ("dns1: ".PadRight(30) + "$dns1") -ForegroundColor Green
 Write-Host ("dns2: ".PadRight(30) + "$dns2") -ForegroundColor Green
 Write-Host ("sessionHostPrepScriptUrl: ".PadRight(30) + "$sessionHostPrepScriptUrl") -ForegroundColor Green
 Write-Host ("bicepTemplateFile: ".PadRight(30) + "$bicepTemplateFile") -ForegroundColor Green
-Write-Host ("vPAW Users group: ".PadRight(30) + "$vPAWUsersGroupDisplayName ($vPAWUsersGroupObjectId)") -ForegroundColor Green
-Write-Host ("vPAW Admins group: ".PadRight(30) + "$vPAWAdminsGroupDisplayName ($vPAWAdminsGroupObjectId)") -ForegroundColor Green
+Write-Host ("vPAW Users group: ".PadRight(30) + "$UsersGroupName, ($UsersGroupId)") -ForegroundColor Green
+Write-Host ("vPAW Admins group: ".PadRight(30) + "$AdminsGroupName, ($AdminsGroupId)") -ForegroundColor Green
 Write-Host "User assignments to be created:" -ForegroundColor Green
 foreach ($u in $userDetails) {
     Write-Host ("- $($u.FirstName) $($u.LastName) ($($u.UPN))") -ForegroundColor Green
@@ -482,23 +523,35 @@ foreach ($u in $userDetails) {
 Write-Host "===========================" -ForegroundColor Magenta
 Write-Log "Summary displayed"
 Pause-With-Timeout
-#############################
-#  Group Assignment Prompt  #
-#############################
+
+###################################################
+#                                                 #
+#             Group Assignment Prompt             #
+#                                                 #
+###################################################
+
+
 Write-Banner "Group Assignment Prompt"
 Write-Host "Would you like to add each user to a group?"
-Write-Host "  1) vPAW Users group only"
-Write-Host "  2) vPAW Admins group only"
+Write-Host ("  1) {0} ({1}) only" -f $UsersGroupName, $UsersGroupId)
+Write-Host ("  2) {0} ({1}) only" -f $AdminsGroupName, $AdminsGroupId)
 Write-Host "  3) Both groups"
 Write-Host "  4) Neither"
 Write-Host "Select an option (1-4) [Default: 1]:" -ForegroundColor Green -NoNewline
 $groupChoice = Read-Host
 if ([string]::IsNullOrWhiteSpace($groupChoice)) { $groupChoice = "1" }
-Pause-With-Timeout
-#############################
-#    Deployment Prompt      #
-#############################
+Clear-Host
+
+###################################################
+#                                                 #
+#                Deployment Prompt                #
+#                                                 #
+###################################################
 Write-Banner "Deployment Prompt"
+$UsersGroupName  = $sessionParams.UsersGroupName
+$UsersGroupId    = $sessionParams.UsersGroupId
+$AdminsGroupName = $sessionParams.AdminsGroupName
+$AdminsGroupId   = $sessionParams.AdminsGroupId
 Write-Host "`nTip: To fully log out in future, run:" -ForegroundColor DarkGray
 Write-Host "  Disconnect-MgGraph; az logout; Get-PSSession | Remove-PSSession" -ForegroundColor DarkGray
 Write-Host ""
@@ -557,49 +610,43 @@ if ($deployNow -eq "y") {
             }
         }
     }
-Pause-With-Timeout
+    Pause-With-Timeout
+
     #############################
     # Assign User to SessionHost#
     #############################
     Write-Banner "Assign User to SessionHost"
     foreach ($user in $userDetails) {
-    $sessionHostName = "$sessionHostPrefix-$($user.FirstName)$($user.LastName)"
-    try {
-        Update-AzWvdSessionHost `
-            -ResourceGroupName $resourceGroup `
-            -HostPoolName $hostPoolName `
-            -Name $sessionHostName `
-            -AssignedUser $user.UPN
-        Write-Host "Assigned $($user.UPN) to session host $sessionHostName using Update-AzWvdSessionHost." -ForegroundColor Cyan
-        Write-Log "Assigned $($user.UPN) to session host $sessionHostName using Update-AzWvdSessionHost"
-    } catch {
-        $errMsg = $_.Exception.Message
-        Write-Host ("Failed to assign {0} to session host {1}: {2}" -f $user.UPN, $sessionHostName, $errMsg) -ForegroundColor Red
-        Write-Log ("Failed to assign {0} to session host {1}: {2}" -f $user.UPN, $sessionHostName, $errMsg)
+        $sessionHostName = "$sessionHostPrefix-$($user.FirstName)$($user.LastName)"
+        try {
+            Update-AzWvdSessionHost `
+                -ResourceGroupName $resourceGroup `
+                -HostPoolName $hostPoolName `
+                -Name $sessionHostName `
+                -AssignedUser $user.UPN
+            Write-Host "Assigned $($user.UPN) to session host $sessionHostName using Update-AzWvdSessionHost." -ForegroundColor Cyan
+            Write-Log "Assigned $($user.UPN) to session host $sessionHostName using Update-AzWvdSessionHost"
+        } catch {
+            $errMsg = $_.Exception.Message
+            Write-Host ("Failed to assign {0} to session host {1}: {2}" -f $user.UPN, $sessionHostName, $errMsg) -ForegroundColor Red
+            Write-Log ("Failed to assign {0} to session host {1}: {2}" -f $user.UPN, $sessionHostName, $errMsg)
+        }
     }
-}
-Pause-With-Timeout
-#############################
-#       Add to Groups       #
-#############################
-Write-Banner "Entra Group Membership (Graph API)"
+    Pause-With-Timeout
 
-$tenantId = $azAccount.tenantId
-try {
-    Disconnect-MgGraph -ErrorAction SilentlyContinue
-} catch {}
-Connect-MgGraph -TenantId $tenantId -Scopes "User.ReadWrite.All, Group.ReadWrite.All, Directory.ReadWrite.All" | Out-Null
+    #############################
+    #       Add to Groups       #
+    #############################
+    $usersGroupLabel  = "$UsersGroupName ($UsersGroupId)"
+$adminsGroupLabel = "$AdminsGroupName ($AdminsGroupId)"
 
 foreach ($user in $userDetails) {
     $userUpn = $user.UPN
     try {
-        # Use filter to get ObjectId; UPN must be quoted
         $mgUser = Get-MgUser -Filter "userPrincipalName eq '$userUpn'"
-        if (-not $mgUser) {
-            throw "User not found"
-        }
+        if (-not $mgUser) { throw "User not found" }
         $userObjectId = $mgUser.Id
-        Write-Host "Found user $userUpn with ObjectId $userObjectId" -ForegroundColor Green
+        Write-Host "Found $userUpn with ObjectId $userObjectId" -ForegroundColor Green
     } catch {
         $errMsg = $_.Exception.Message
         Write-Host "Failed to locate user $userUpn in Entra ID: $errMsg" -ForegroundColor Red
@@ -609,83 +656,97 @@ foreach ($user in $userDetails) {
 
     if ($groupChoice -eq "1" -or $groupChoice -eq "3") {
         try {
-            New-MgGroupMember -GroupId $vPAWUsersGroupObjectId -DirectoryObjectId $userObjectId -ErrorAction Stop
-            Write-Host "Added $userUpn (ObjectId: $userObjectId) to vPAW Users group." -ForegroundColor Cyan
-            Write-Log "Added $userUpn (ObjectId: $userObjectId) to vPAW Users group"
+            $isMember = Get-MgGroupMember -GroupId $UsersGroupId -All | Where-Object { $_.Id -eq $userObjectId }
+            if ($isMember) {
+                Write-Host ("{0} is already a member of {1}" -f $userUpn, $usersGroupLabel) -ForegroundColor Yellow
+                Write-Log ("{0} already in {1}" -f $userUpn, $usersGroupLabel)
+            } else {
+                New-MgGroupMember -GroupId $UsersGroupId -DirectoryObjectId $userObjectId -ErrorAction Stop
+                Write-Host ("Added {0} (ObjectId: {1}) to {2}:" -f $userUpn, $userObjectId, $usersGroupLabel) -ForegroundColor Cyan
+                Write-Log ("Added {0} (ObjectId: {1}) to {2}" -f $userUpn, $userObjectId, $usersGroupLabel)
+            }
         } catch {
             $errMsg = $_.Exception.Message
-            Write-Host "Failed to add $userUpn to vPAW Users group: $errMsg" -ForegroundColor Red
-            Write-Log "Failed to add $userUpn to vPAW Users group: $errMsg"
+            Write-Host ("Failed to add {0} to {1}: {2}" -f $userUpn, $usersGroupLabel, $errMsg) -ForegroundColor Red
+            Write-Log ("Failed to add {0} to {1}: {2}" -f $userUpn, $usersGroupLabel, $errMsg)
         }
     }
+
     if ($groupChoice -eq "2" -or $groupChoice -eq "3") {
         try {
-            New-MgGroupMember -GroupId $vPAWAdminsGroupObjectId -DirectoryObjectId $userObjectId -ErrorAction Stop
-            Write-Host "Added $userUpn (ObjectId: $userObjectId) to vPAW Admins group." -ForegroundColor Cyan
-            Write-Log "Added $userUpn (ObjectId: $userObjectId) to vPAW Admins group"
+            $isMember = Get-MgGroupMember -GroupId $AdminsGroupId -All | Where-Object { $_.Id -eq $userObjectId }
+            if ($isMember) {
+                Write-Host ("{0} is already a member of {1}" -f $userUpn, $adminsGroupLabel) -ForegroundColor Yellow
+                Write-Log ("{0} already in {1}" -f $userUpn, $adminsGroupLabel)
+            } else {
+                New-MgGroupMember -GroupId $AdminsGroupId -DirectoryObjectId $userObjectId -ErrorAction Stop
+                Write-Host ("Added {0} (ObjectId: {1}) to {2}:" -f $userUpn, $userObjectId, $adminsGroupLabel) -ForegroundColor Cyan
+                Write-Log ("Added {0} (ObjectId: {1}) to {2}" -f $userUpn, $userObjectId, $adminsGroupLabel)
+            }
         } catch {
             $errMsg = $_.Exception.Message
-            Write-Host "Failed to add $userUpn to vPAW Admins group: $errMsg" -ForegroundColor Red
-            Write-Log "Failed to add $userUpn to vPAW Admins group: $errMsg"
+            Write-Host ("Failed to add {0} to {1}: {2}" -f $userUpn, $adminsGroupLabel, $errMsg) -ForegroundColor Red
+            Write-Log ("Failed to add {0} to {1}: {2}" -f $userUpn, $adminsGroupLabel, $errMsg)
         }
     }
 }
+    Pause-With-Timeout
+
+    ##############################
+    #      VM Auto-Shutdown     #
+    #############################
+    Write-Banner "Configure VM Auto-Shutdown"
+    foreach ($user in $userDetails) {
+        $vmName = "$sessionHostPrefix-$($user.FirstName)$($user.LastName)"
+        $upn = $user.UPN
+        Write-Host "Setting auto-shutdown for VM: $vmName (Notify: $upn)" -ForegroundColor Yellow
+        az vm auto-shutdown --resource-group $resourceGroup --name $vmName --time 1800 --email $upn 2>&1 | Write-Host
+    }
+    Pause-With-Timeout
+
+    #############################
+    # Set Device Extension Attributes
+    #############################
+    Write-Banner "Set vPAW Device Extension Attributes"
+    $params = @{
+        extensionAttributes = @{
+            extensionAttribute1 = "virtual Privileged Access Workstation"
+        }
+    }
+    $devices = Get-MgDevice -Filter "startswith(displayName,'$resourceGroup')"
+    foreach ($device in $devices) {
+        Write-Host "Tagging device: $($device.displayName) ($($device.Id))" -ForegroundColor Cyan
+        Update-MgDevice -DeviceId $device.Id -BodyParameter $params
+    }
+    Write-Log "Device extension attributes set for all devices with displayName starting with '$resourceGroup'"
+    Pause-With-Timeout
+
+    #############################
+    # Invalidate Reg. Key/Save  #
+    #############################
+    Write-Banner "Invalidate Reg. Key/Save Config"
+    Write-Host "Invalidating host pool registration key for security..." -ForegroundColor Yellow
+    try {
+        az desktopvirtualization hostpool update `
+            --resource-group $resourceGroup `
+            --name $hostPoolName `
+            --registration-info registration-token-operation=Delete `
+            --output none
+        Write-Host "Registration key invalidated." -ForegroundColor Cyan
+        Write-Log "Host pool registration key invalidated"
+    } catch {
+        $errMsg = $_.Exception.Message
+        Write-Host "Failed to invalidate the host pool registration key: $errMsg" -ForegroundColor Red
+        Write-Log "Failed to invalidate host pool registration key: $errMsg"
+    }
+
+    # NOTE: This script only reads from vPAWconf.inf and never writes or modifies it.
+
+    Write-Host "`n===== vPAW Session Host deployment workflow completed =====" -ForegroundColor Magenta
+    Write-Log "Workflow completed"
+
 } else {
     Write-Host "Deployment skipped. You can deploy later using the collected parameters." -ForegroundColor Yellow
     Write-Log "Deployment skipped by user"
     exit 0
 }
-Pause-With-Timeout
-##############################
-#      VM Auto-Shutdown     #
-#############################
-Write-Banner "Configure VM Auto-Shutdown"
-foreach ($user in $userDetails) {
-    $vmName = "$sessionHostPrefix-$($user.FirstName)$($user.LastName)"
-    $upn = $user.UPN
-    Write-Host "Setting auto-shutdown for VM: $vmName (Notify: $upn)" -ForegroundColor Yellow
-    az vm auto-shutdown --resource-group $resourceGroup --name $vmName --time 1800 --email $upn 2>&1 | Write-Host
-}
-Pause-With-Timeout
-#############################
-# Set Device Extension Attributes
-#############################
-Write-Banner "Set vPAW Device Extension Attributes"
-$params = @{
-    extensionAttributes = @{
-        extensionAttribute1 = "virtual Privileged Access Workstation"
-    }
-}
-$devices = Get-MgDevice -Filter "startswith(displayName,'$resourceGroup')"
-foreach ($device in $devices) {
-    Write-Host "Tagging device: $($device.displayName) ($($device.Id))" -ForegroundColor Cyan
-    Update-MgDevice -DeviceId $device.Id -BodyParameter $params
-}
-Write-Log "Device extension attributes set for all devices with displayName starting with '$resourceGroup'"
-Pause-With-Timeout
-#############################
-# Invalidate Reg. Key/Save  #
-#############################
-Write-Banner "Invalidate Reg. Key/Save Config"
-Write-Host "Invalidating host pool registration key for security..." -ForegroundColor Yellow
-try {
-    az desktopvirtualization hostpool update `
-        --resource-group $resourceGroup `
-        --name $hostPoolName `
-        --registration-info registration-token-operation=Delete `
-        --output none
-    Write-Host "Registration key invalidated." -ForegroundColor Cyan
-    Write-Log "Host pool registration key invalidated"
-} catch {
-    $errMsg = $_.Exception.Message
-    Write-Host "Failed to invalidate the host pool registration key: $errMsg" -ForegroundColor Red
-    Write-Log "Failed to invalidate host pool registration key: $errMsg"
-}
-
-# NOTE: This script only reads from vPAWconf.inf and never writes or modifies it.
-# The code that would save back to the .inf file has been removed as per requirements.
-
-Write-Host "`n===== vPAW Session Host deployment workflow completed =====" -ForegroundColor Magenta
-Write-Log "Workflow completed"
-
-exit 0
