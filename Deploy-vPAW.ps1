@@ -345,7 +345,7 @@ function Select-AADGroupBySubstring([string]$searchSubstring, [string]$role) {
     Write-Log "Selected AAD group for: $($selectedGroup.DisplayName) ObjectId: $($selectedGroup.Id)"
     return $selectedGroup
 }
-
+Clear-Host
 Write-Host "vPAW User and Admin Entra groups" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "1) Use existing Entra groups" -ForegroundColor Yellow
@@ -353,7 +353,7 @@ Write-Host "2) Create new Entra groups" -ForegroundColor Yellow
 Write-Host ""
 $groupsChoice = Read-Host "Select an option (Default: 1)"
 if ([string]::IsNullOrEmpty($groupsChoice)) { $groupsChoice = "1" }
-
+Clear-Host
 if ($groupsChoice -eq "1") {
     Write-Host "Enter search substring for group names (e.g. 'PAW')" -ForegroundColor Green
     $groupSearch = Read-Host
@@ -366,6 +366,7 @@ if ($groupsChoice -eq "1") {
             $groupSearch = Read-Host
         }
     }
+    Clear-Host
     $adminGroup = $null
     while (-not $adminGroup) {
         $adminGroup = Select-AADGroupBySubstring -searchSubstring $groupSearch -role "Admins (Elevated Contributors)"
@@ -823,7 +824,9 @@ Write-Host "This is required for openid, profile, and User.Read delegated permis
 Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Green
 Write-Log "Script completed. Please verify CA exclusions and grant admin consent for $($selectedApp.DisplayName) in Azure Portal."
 Write-Log "Conditional Access exclusion complete."
-Start-Sleep 1
+Write-Host ""
+Write-Host "Press any key to continue..." -ForegroundColor Yellow
+[void][System.Console]::ReadKey($true)
 
 #############################
 #                           #
@@ -842,31 +845,7 @@ if ($deploySessionHost -eq "n") {
     Write-Host "Deployment complete." -ForegroundColor Green
     exit 0
 } elseif ($deploySessionHost -eq "y") {
-    $ps1Files = Get-ChildItem -Path . -File | Where-Object { $_.Extension -eq ".ps1" }
-    if (-not $ps1Files) {
-        Write-Host "No .ps1 files found in the current directory." -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "Select a PowerShell script to run:" -ForegroundColor Cyan
-    for ($i = 0; $i -lt $ps1Files.Count; $i++) {
-        Write-Host "$($i+1)) $($ps1Files[$i].Name)" -ForegroundColor Yellow
-    }
-    Write-Host "Enter the number of the script to run:" -ForegroundColor Green
-    while ($true) {
-        $selection = Read-Host
-        if ($selection -match '^\d+$' -and $selection -ge 1 -and $selection -le $ps1Files.Count) {
-            $selectedScript = $ps1Files[$selection - 1].FullName
-            Write-Host "Running script: $selectedScript" -ForegroundColor Cyan
-            try {
-                & $selectedScript
-            } catch {
-                Write-Host "Failed to run script: $($_.Exception.Message)" -ForegroundColor Red
-            }
-            break
-        } else {
-            Write-Host "Invalid selection. Please enter a valid number." -ForegroundColor Red
-        }
-    }
+    Deploy-SessionHost
 } else {
     Write-Host "Invalid input. Please enter 'y' or 'n'." -ForegroundColor Red
     exit 1
@@ -1004,23 +983,25 @@ function Select-SessionHostBicepFile {
 # Confirm Bicep file from inf, or prompt for selection
 $shouldUseInfFile = $false
 
-if ($sessionParams.BicepTemplateFile -and (Test-Path $sessionParams.BicepTemplateFile)) {
-    Write-Host "Previous session refers to Bicep file: $($sessionParams.BicepTemplateFile)" -ForegroundColor Yellow
-    Write-Host "Use this Bicep file for the current deployment? (y/n) [Default: y]" -ForegroundColor Green -NoNewline
-    $resp = Read-Host
-    if ([string]::IsNullOrWhiteSpace($resp) -or $resp -eq "y") {
-        $bicepTemplateFile = $sessionParams.BicepTemplateFile
-        $shouldUseInfFile = $true
-        Write-Log "User chose to reuse Bicep file from inf: $bicepTemplateFile"
-    }
+# Only use the session host Bicep file from the inf if it exists and is not a core infra file
+$sessionHostBicepFromInf = $null
+if ($sessionParams.SessionHostBicep) {
+    $sessionHostBicepFromInf = $sessionParams.SessionHostBicep
+} elseif ($sessionParams.BicepTemplateFile -and $sessionParams.BicepTemplateFile -like "*SessionHost*") {
+    $sessionHostBicepFromInf = $sessionParams.BicepTemplateFile
 }
 
-if (-not $shouldUseInfFile) {
+if ($sessionHostBicepFromInf -and (Test-Path $sessionHostBicepFromInf)) {
+    Write-Host "Using session host Bicep file from previous session: $sessionHostBicepFromInf" -ForegroundColor Green
+    $bicepTemplateFile = $sessionHostBicepFromInf
+    $shouldUseInfFile = $true
+    Write-Log "Auto-selected session host Bicep file from inf: $bicepTemplateFile"
+} else {
     $bicepTemplateFile = Select-SessionHostBicepFile
     $sessionParams.BicepTemplateFile = $bicepTemplateFile
     Write-Log "User selected Bicep file: $bicepTemplateFile"
 }
-
+Clear-Host
 
 ###################################################
 #                                                 #
