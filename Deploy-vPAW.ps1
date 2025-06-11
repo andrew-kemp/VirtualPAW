@@ -1,29 +1,6 @@
-function Write-Banner { ... }             # Your banner function
-function Write-Log { ... }                # Your log function
-# (other shared functions...)
-
-function Deploy-CoreInfra {
-<#
-.SYNOPSIS
-    Interactive deployment and post-deployment workflow for VirtualPAW (Privileged Access Workstation) in Azure.
-    This script guides you through environment preparation, Azure/Entra group selection or creation, Bicep template selection, 
-    deployment, RBAC assignment, Conditional Access exclusions, and optional session host deployment.
-
-.DESCRIPTION
-    - Ensures required modules and tools are installed, and authenticates to Azure and Microsoft Graph.
-    - Walks you through subscription and resource group selection/creation.
-    - Handles vPAW user/admin Entra group selection or creation.
-    - Collects key deployment parameters and stores them for reuse.
-    - Selects and deploys the correct Bicep template for core infrastructure.
-    - Assigns RBAC to AVD application groups and updates Session Desktop friendly name.
-    - Automates exclusion of storage applications from Conditional Access policies.
-    - Offers post-deployment automation for vPAW session host.
-
-.NOTES
-    - Requires Bicep template file for deployment.
-    - Requires Azure CLI, Az PowerShell, and Microsoft.Graph modules.
-    - Logs actions to vPAWDeploy.log for audit and troubleshooting.
-#>
+# ==========================
+# Shared Utility Functions
+# ==========================
 
 function Write-Banner {
     param([string]$Heading)
@@ -32,7 +9,7 @@ function Write-Banner {
     $bannerLine = ('#' * $bannerWidth)
     $emptyLine = ('#' + (' ' * ($bannerWidth - 2)) + '#')
     $centered = $Heading.Trim()
-    $centered = $centered.PadLeft(($centered.Length + $innerWidth) / 2).PadRight($innerWidth)
+    $centered = $centered.PadLeft(([math]::Floor(($centered.Length + $innerWidth) / 2))).PadRight($innerWidth)
     Write-Host ""
     Write-Host $bannerLine -ForegroundColor Cyan
     Write-Host $emptyLine -ForegroundColor Cyan
@@ -42,9 +19,7 @@ function Write-Banner {
     Write-Host ""
 }
 
-# --- Logging Function ---
 function Write-Log {
-    # Writes informative, warning, or error messages to a log file.
     param (
         [string]$Message,
         [string]$Level = "INFO"
@@ -54,6 +29,54 @@ function Write-Log {
     $entry = "$timestamp [$Level] $Message"
     Add-Content -Path $logPath -Value $entry
 }
+
+function Ensure-Module {
+    param([string]$ModuleName)
+    $isInstalled = Get-Module -ListAvailable -Name $ModuleName
+    if (-not $isInstalled) {
+        Write-Host "Installing module $ModuleName..." -ForegroundColor Yellow
+        Write-Log "Installing module $ModuleName..." "WARN"
+        Install-Module $ModuleName -Scope CurrentUser -Force -AllowClobber
+        Write-Host "Please restart your PowerShell session to use $ModuleName safely." -ForegroundColor Cyan
+        Write-Log "Installed $ModuleName. Please restart PowerShell session." "ERROR"
+        exit 0
+    }
+}
+
+function Ensure-AzCli {
+    if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
+        Write-Host "ERROR: Azure CLI (az) is not installed." -ForegroundColor Red
+        Write-Log "Azure CLI not installed." "ERROR"
+        exit 1
+    }
+}
+
+function Ensure-AzAccountModule {
+    if (-not (Get-Module -ListAvailable -Name Az.Accounts)) {
+        Write-Host "ERROR: Az.Accounts module is not installed." -ForegroundColor Red
+        Write-Log "Az.Accounts module not installed." "ERROR"
+        exit 1
+    }
+}
+
+function Ensure-AzConnection {
+    try { $null = Get-AzContext -ErrorAction Stop }
+    catch { 
+        Write-Host "Re-authenticating to Azure..." -ForegroundColor Yellow
+        Write-Log "Re-authenticating to Azure..." "WARN"
+        Connect-AzAccount | Out-Null 
+    }
+}
+
+function Ensure-MgGraphConnection {
+    try { $null = Get-MgContext -ErrorAction Stop }
+    catch { 
+        Write-Host "Re-authenticating to Microsoft Graph..." -ForegroundColor Yellow
+        Write-Log "Re-authenticating to Microsoft Graph..." "WARN"
+        Connect-MgGraph -Scopes "Group.Read.All, Application.Read.All, Policy.ReadWrite.ConditionalAccess" 
+    }
+}
+function Deploy-CoreInfra {
 
 #############################
 #                           #
@@ -563,25 +586,6 @@ Start-Sleep 1
 Clear-Host
 Write-Banner "Post-Deployment: RBAC & AVD Config"
 
-function Ensure-AzConnection {
-    # Ensures connection to Az PowerShell
-    try { $null = Get-AzContext -ErrorAction Stop }
-    catch { 
-        Write-Host "Re-authenticating to Azure..." -ForegroundColor Yellow
-        Write-Log "Re-authenticating to Azure..." "WARN"
-        Connect-AzAccount | Out-Null 
-    }
-}
-
-function Ensure-MgGraphConnection {
-    # Ensures connection to Microsoft Graph
-    try { $null = Get-MgContext -ErrorAction Stop }
-    catch { 
-        Write-Host "Re-authenticating to Microsoft Graph..." -ForegroundColor Yellow
-        Write-Log "Re-authenticating to Microsoft Graph..." "WARN"
-        Connect-MgGraph -Scopes "Group.Read.All, Application.Read.All, Policy.ReadWrite.ConditionalAccess" 
-    }
-}
 
 function Ensure-RoleAssignment {
     param (
