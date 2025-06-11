@@ -1,3 +1,41 @@
+<#
+.SYNOPSIS
+    Deploys the Virtual Privileged Access Workstation (vPAW) solution in Azure, including core infrastructure and/or additional session hosts.
+
+.DESCRIPTION
+    This script provides an interactive menu to deploy the full vPAW solution or just additional session hosts. 
+    It automates the setup of Azure resources, Azure Virtual Desktop (AVD) host pools, Entra ID (Azure AD) groups, 
+    RBAC assignments, Conditional Access policy exclusions, and more. 
+    The script connects to and manages resources in Azure via both Azure CLI and Az PowerShell, 
+    and interacts with Microsoft Graph for Entra ID (Azure AD) operations.
+
+    Key features:
+    - Interactive menu for full or session host-only deployment
+    - Automated environment and module checks
+    - Azure subscription and resource group selection/creation
+    - Entra ID group selection or creation
+    - Bicep template selection and deployment
+    - RBAC assignment for AVD and VM access
+    - Conditional Access policy exclusion for storage apps
+    - Optional session host deployment with user assignment and group membership
+    - Device tagging and VM auto-shutdown configuration
+
+.REQUIREMENTS
+    - PowerShell 7.x (latest recommended)
+    - Azure CLI (az) installed and authenticated
+    - Az PowerShell modules: Az.Accounts, Az.DesktopVirtualization
+    - Microsoft Graph PowerShell modules: Microsoft.Graph, Microsoft.Graph.Groups, Microsoft.Graph.Authentication
+    - Sufficient Azure and Entra ID (Azure AD) permissions to create resources, assign roles, and manage groups
+
+.NOTES
+    - Run this script in a PowerShell 7 terminal for best compatibility and performance.
+    - You must be authenticated to Azure and Microsoft Graph; the script will prompt for login if needed.
+    - All actions are logged to vPAWDeploy.log in the script directory.
+
+.AUTHOR
+    [Your Name or Organization]
+#>
+
 # ==========================
 # Shared Utility Functions
 # ==========================
@@ -840,49 +878,7 @@ Write-Log "Script execution complete."
 }
 
 function Deploy-SessionHost {
-    <#
-.SYNOPSIS
-    Fully interactive and repeatable deployment workflow for VirtualPAW personal session hosts in Azure.
-    - Loads parameters from previous deployment (vPAWconf.inf) if available, allowing full, partial, or no reuse.
-    - Connects to and authenticates with Azure CLI, Az PowerShell, and Microsoft Graph.
-    - Guides you through selection/creation of subscription, resource group, host pool, VNet, subnet, and deployment parameters.
-    - Prefers SessionHost-related Bicep file but allows full selection if not found.
-    - Supports deploying one or more session hosts, collecting user details per host, setting admin credentials, DNS, and prep scripts.
-    - Generates and invalidates host pool registration key for secure deployment.
-    - Assigns users to their personal session hosts.
-    - Optionally adds users to vPAW Users/Admins groups based on selection and .inf configuration.
-    - Logs all major activities, prompts, and errors for traceability.
-    - Persists session config for future ease of use.
-.DESCRIPTION
-    - Ensures all required modules and CLIs are present, and authenticates to Azure/Graph.
-    - Loads, displays, and allows reuse or override of previous session configuration if present.
-    - Prompts for missing or overridden deployment details: subscription, resource group, locations, host pool, VNet, subnet, etc.
-    - Securely collects per-host user details and administrator credentials.
-    - Selects an appropriate Bicep template (SessionHost-prioritized).
-    - Deploys each session host, setting the assignedUser property to the correct user for personal host pools.
-    - Invalidates registration key post-deployment.
-    - Saves all deployment parameters for future runs.
-    - All actions are logged to vPAWSessionHost.log.
-#>
-
-function Write-Banner {
-    param([string]$Heading)
-    $bannerWidth = 51
-    $innerWidth = $bannerWidth - 2
-    $bannerLine = ('#' * $bannerWidth)
-    $emptyLine = ('#' + (' ' * ($bannerWidth - 2)) + '#')
-    $centered = $Heading.Trim()
-    $centered = $centered.PadLeft(([math]::Floor(($centered.Length + $innerWidth) / 2))).PadRight($innerWidth)
-    Write-Host ""
-    Write-Host $bannerLine -ForegroundColor Cyan
-    Write-Host $emptyLine -ForegroundColor Cyan
-    Write-Host ("#"+$centered+"#") -ForegroundColor Cyan
-    Write-Host $emptyLine -ForegroundColor Cyan
-    Write-Host $bannerLine -ForegroundColor Cyan
-    Write-Host ""
-}
-
-#############################
+   #############################
 #                           #
 #   Config and Log Setup    #
 #                           #
@@ -906,12 +902,6 @@ $fields = @(
     @{Name="vPAWAdminsGroupDisplayName";Prompt="vPAW Admins group display name";Var="vPAWAdminsGroupDisplayName"},
     @{Name="vPAWAdminsGroupObjectId";Prompt="vPAW Admins group objectId";Var="vPAWAdminsGroupObjectId"}
 )
-function Write-Log {
-    param ([string]$Message)
-    $timestamp = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-    Add-Content -Path $logFile -Value "$timestamp - $Message"
-}
-Write-Log "Script started by $env:USERNAME"
 Clear-Host
 
 ###################################################
@@ -1073,55 +1063,7 @@ foreach ($mod in $modules) {
     Import-Module $mod -Force
 }
 
-# Helper function to ensure Azure connection and context
-function Ensure-AzConnection {
-    param(
-        [string]$SubscriptionId
-    )
-    try {
-        $context = Get-AzContext
-        if (-not $context -or [string]::IsNullOrWhiteSpace($context.Account)) {
-            Write-Host "No Azure context found, connecting..." -ForegroundColor Yellow
-            if ($SubscriptionId) {
-                Connect-AzAccount -Subscription $SubscriptionId -ErrorAction Stop
-                Set-AzContext -SubscriptionId $SubscriptionId -ErrorAction Stop
-            } else {
-                Connect-AzAccount -ErrorAction Stop
-            }
-        } else {
-            Write-Host "Already connected to Azure as $($context.Account)" -ForegroundColor Cyan
-            if ($SubscriptionId -and $context.Subscription.Id -ne $SubscriptionId) {
-                Set-AzContext -SubscriptionId $SubscriptionId -ErrorAction Stop
-                Write-Host "Switched to subscription $SubscriptionId" -ForegroundColor Cyan
-            }
-        }
-    } catch {
-        Write-Host "Error connecting to Azure: $_" -ForegroundColor Red
-        throw
-    }
-}
 
-# Helper function for Microsoft Graph connection
-function Ensure-GraphConnection {
-    $graphScopes = @(
-        "User.ReadWrite.All",
-        "GroupMember.ReadWrite.All",
-        "Device.ReadWrite.All"
-    )
-    $mgContext = $null
-    try { $mgContext = Get-MgContext } catch {}
-    $missingScopes = if ($mgContext) { $graphScopes | Where-Object { $_ -notin $mgContext.Scopes } } else { $graphScopes }
-    if (-not $mgContext -or ($missingScopes.Count -gt 0)) {
-        Write-Host "Connecting to Microsoft Graph with required scopes..." -ForegroundColor Yellow
-        Connect-MgGraph -Scopes $graphScopes -ErrorAction Stop
-        $mgContext = Get-MgContext
-        Write-Host "Connected to Microsoft Graph as $($mgContext.Account)" -ForegroundColor Cyan
-        Write-Log "Connected to Microsoft Graph as $($mgContext.Account)"
-    } else {
-        Write-Host "Already connected to Microsoft Graph as $($mgContext.Account)" -ForegroundColor Cyan
-        Write-Log "Already connected to Microsoft Graph as $($mgContext.Account)"
-    }
-}
 
 # Set context if .inf already has needed details and skip resource selection if possible
 $missing = $requiredParams | Where-Object { -not ($sessionParams.PSObject.Properties.Name -contains $_) -or [string]::IsNullOrWhiteSpace($sessionParams.$_) }
@@ -1604,8 +1546,12 @@ foreach ($user in $userDetails) {
     Write-Host "Deployment skipped. You can deploy later using the collected parameters." -ForegroundColor Yellow
     Write-Log "Deployment skipped by user"
     exit 0
+} 
+
 }
-}
+
+
+
 
 # === MAIN MENU ===
 while ($true) {

@@ -117,3 +117,11 @@
 2025-06-11 16:47:42 - Device extension attributes set for all devices with displayName starting with 'vPAW'
 2025-06-11 16:47:53 - Host pool registration key invalidated
 2025-06-11 16:47:53 - Workflow completed
+2025-06-11 18:43:03 - Script started by andrew
+2025-06-11 18:43:03 - Loaded previous session config from vPAWconf.inf
+2025-06-11 18:43:06 - User chose to reuse previous session config: y
+2025-06-11 18:43:22 - Auto-selected session host bicep file: vPAW-Deploy-SessionHost.bicep
+2025-06-11 18:43:22 - User selected Bicep file: vPAW-Deploy-SessionHost.bicep
+2025-06-11 18:43:22 - Checking modules and authenticating services
+2025-06-11 18:44:18 - Using settings from vPAWconf.inf: Subscription=Microsoft Azure Sponsorship, ResourceGroup=vPAW, ...
+2025-06-11 18:44:18 - Already connected to Microsoft Graph as andrew@kemponline.co.uk
