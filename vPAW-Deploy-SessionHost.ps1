@@ -121,6 +121,73 @@ if (Test-Path $confFile) {
     }
 }
 Clear-Host
+###################################################
+#                                                 #
+#              Bicep File Selection               #
+#                                                 #
+###################################################
+Write-Banner "Bicep File Selection"
+function Select-SessionHostBicepFile {
+    $defaultFile = "vPAW-Deploy-SessionHost.bicep"
+    $allBicepFiles = Get-ChildItem -Path . -File | Where-Object { $_.Name -match '\.bicep$' -or $_.Name -match '\.BICEP$' }
+
+    # Try to use the default file if it exists
+    $default = $allBicepFiles | Where-Object { $_.Name -eq $defaultFile }
+    if ($default) {
+        Write-Host "Default session host Bicep file detected: $defaultFile" -ForegroundColor Green
+        Write-Host "Use this file? (y/n) [default: y]" -ForegroundColor Green -NoNewline
+        $resp = Read-Host
+        if ([string]::IsNullOrWhiteSpace($resp) -or $resp -eq "y") {
+            Write-Log "Auto-selected session host bicep file: $defaultFile"
+            return $defaultFile
+        }
+    }
+
+    # If not using default, or default not found, list all Bicep files for selection
+    if (-not $allBicepFiles -or $allBicepFiles.Count -eq 0) {
+        Write-Host "No .bicep template files found." -ForegroundColor Red
+        Write-Log "No .bicep template files found." "ERROR"
+        return $null
+    }
+
+    Write-Host "Available .bicep files:" -ForegroundColor Cyan
+    for ($i = 0; $i -lt $allBicepFiles.Count; $i++) {
+        Write-Host "$($i + 1)) $($allBicepFiles[$i].Name)" -ForegroundColor Cyan
+    }
+    Write-Host "Enter the number of the Bicep file to use:" -ForegroundColor Green
+
+    while ($true) {
+        $selection = Read-Host
+        if ($selection -match '^\d+$' -and $selection -gt 0 -and $selection -le $allBicepFiles.Count) {
+            $chosenFile = $allBicepFiles[$selection - 1].Name
+            Write-Host "Selected Bicep template: $chosenFile" -ForegroundColor Cyan
+            Write-Log "User manually selected bicep file: $chosenFile"
+            return $chosenFile
+        } else {
+            Write-Host "Invalid selection." -ForegroundColor Red
+        }
+    }
+}
+
+# Confirm Bicep file from inf, or prompt for selection
+$shouldUseInfFile = $false
+
+if ($sessionParams.BicepTemplateFile -and (Test-Path $sessionParams.BicepTemplateFile)) {
+    Write-Host "Previous session refers to Bicep file: $($sessionParams.BicepTemplateFile)" -ForegroundColor Yellow
+    Write-Host "Use this Bicep file for the current deployment? (y/n) [Default: y]" -ForegroundColor Green -NoNewline
+    $resp = Read-Host
+    if ([string]::IsNullOrWhiteSpace($resp) -or $resp -eq "y") {
+        $bicepTemplateFile = $sessionParams.BicepTemplateFile
+        $shouldUseInfFile = $true
+        Write-Log "User chose to reuse Bicep file from inf: $bicepTemplateFile"
+    }
+}
+
+if (-not $shouldUseInfFile) {
+    $bicepTemplateFile = Select-SessionHostBicepFile
+    $sessionParams.BicepTemplateFile = $bicepTemplateFile
+    Write-Log "User selected Bicep file: $bicepTemplateFile"
+}
 
 
 ###################################################
@@ -346,64 +413,7 @@ if ($doResourcePrompt) {
     $sessionParams.vPAWAdminsGroupObjectId = $vPAWAdminsGroupObjectId
 }
 Clear-Host
-###################################################
-#                                                 #
-#              Bicep File Selection               #
-#                                                 #
-###################################################
-Write-Banner "Bicep File Selection"
-function Select-SessionHostBicepFile {
-    param([string]$excludeFile = $null)
-    $allBicepFiles = Get-ChildItem -Path . -File | Where-Object { $_.Name -match '\.bicep$' -or $_.Name -match '\.BICEP$' }
-    if ($excludeFile) {
-        $allBicepFiles = $allBicepFiles | Where-Object { $_.Name -ne $excludeFile }
-    }
-    $pattern = '(?i)Session[\s\-]?Host'
-    $sessionHostFiles = $allBicepFiles | Where-Object { $_.Name -match $pattern }
-    if ($sessionHostFiles.Count -eq 1) {
-        $file = $sessionHostFiles[0].Name
-        Write-Host "Found session host Bicep file: $file"
-        Write-Host "Using $file, continue? (y/n) [default: y]" -ForegroundColor Green -NoNewline
-        $resp = Read-Host
-        if ([string]::IsNullOrWhiteSpace($resp) -or $resp -eq "y") {
-            Write-Log "Auto-selected session host bicep file: $file"
-            return $file
-        }
-    } elseif ($sessionHostFiles.Count -gt 1) {
-        Write-Host "Multiple session host Bicep files found:" -ForegroundColor Cyan
-        for ($i = 0; $i -lt $sessionHostFiles.Count; $i++) {
-            Write-Host "$($i + 1)) $($sessionHostFiles[$i].Name)" -ForegroundColor Cyan
-        }
-        Write-Host "Select one by number or press Enter to list all bicep files:" -ForegroundColor Green -NoNewline
-        $choice = Read-Host
-        if ($choice -match '^\d+$' -and $choice -gt 0 -and $choice -le $sessionHostFiles.Count) {
-            $chosenFile = $sessionHostFiles[$choice - 1].Name
-            Write-Log "User selected session host bicep file: $chosenFile"
-            return $chosenFile
-        }
-    }
-    if (-not $allBicepFiles -or $allBicepFiles.Count -eq 0) {
-        Write-Host "No .bicep template files found." -ForegroundColor Red
-        Write-Log "No .bicep template files found." "ERROR"
-        return $null
-    }
-    Write-Host "Available .bicep files:" -ForegroundColor Cyan
-    for ($i = 0; $i -lt $allBicepFiles.Count; $i++) {
-        Write-Host "$($i + 1)) $($allBicepFiles[$i].Name)" -ForegroundColor Cyan
-    }
-    Write-Host "Enter the number:" -ForegroundColor Green
-    while ($true) {
-        $selection = Read-Host
-        if ($selection -match '^\d+$' -and $selection -gt 0 -and $selection -le $allBicepFiles.Count) {
-            $chosenFile = $allBicepFiles[$selection - 1].Name
-            Write-Host "Selected Bicep template: $chosenFile" -ForegroundColor Cyan
-            Write-Log "User manually selected bicep file: $chosenFile"
-            return $chosenFile
-        } else {
-            Write-Host "Invalid selection." -ForegroundColor Red
-        }
-    }
-}
+
 
 ###################################################
 #                                                 #
@@ -555,8 +565,9 @@ $AdminsGroupId   = $sessionParams.AdminsGroupId
 Write-Host "`nTip: To fully log out in future, run:" -ForegroundColor DarkGray
 Write-Host "  Disconnect-MgGraph; az logout; Get-PSSession | Remove-PSSession" -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "Would you like to deploy the selected Bicep template now? (y/n)" -ForegroundColor Green
+Write-Host "Would you like to deploy the selected Bicep template now? (y/n) [Default: y]" -ForegroundColor Green
 $deployNow = Read-Host
+if ([string]::IsNullOrWhiteSpace($deployNow)) { $deployNow = "y" }
 Write-Log "User chose to deploy: $deployNow"
 
 if ($deployNow -eq "y") {
@@ -578,36 +589,38 @@ if ($deployNow -eq "y") {
             Write-Host "WARNING: Session host VM '$sessionHostName' already exists in resource group '$resourceGroup'. Skipping Bicep deployment for this host." -ForegroundColor Yellow
             Write-Log "Session host VM '$sessionHostName' already exists. Skipping Bicep deployment."
         } else {
-            Write-Host "`nStarting deployment for $($user.FirstName) $($user.LastName) ($($user.UPN))..." -ForegroundColor Yellow
-            Write-Log "Deploying session host for $($user.UPN)"
-            $paramArgs = @(
-                "--resource-group", $resourceGroup,
-                "--template-file", $bicepTemplateFile,
-                "--parameters",
-                "sessionHostPrefix=$sessionHostPrefix",
-                "userFirstName=$($user.FirstName)",
-                "userLastName=$($user.LastName)",
-                "userUPN=$($user.UPN)",
-                "adminUsername=$adminUsername",
-                "adminPassword=$adminPassword",
-                "hostPoolRegistrationInfoToken=$hostPoolRegistrationInfoToken",
-                "vNetResourceGroup=$vNetResourceGroup",
-                "vNetName=$vNetName",
-                "subnetName=$subnetName",
-                "dns1=$dns1",
-                "dns2=$dns2",
-                "sessionHostPrepScriptUrl=$sessionHostPrepScriptUrl"
-            )
-            Write-Host "az deployment group create $((Mask-SensitiveArgs $paramArgs) -join ' ')" -ForegroundColor Gray
-            try {
-                az deployment group create @paramArgs
-                Write-Host "`nDeployment command executed for $($user.UPN)." -ForegroundColor Green
-                Write-Log "Deployment command executed for $($user.UPN) successfully"
-            } catch {
-                $errMsg = $_.Exception.Message
-                Write-Host ("Deployment command failed for {0}: {1}" -f $user.UPN, $errMsg) -ForegroundColor Red
-                Write-Log ("Deployment command failed for {0}: {1}" -f $user.UPN, $errMsg)
-            }
+    Write-Host "`nStarting deployment for $($user.FirstName) $($user.LastName) ($($user.UPN))..." -ForegroundColor Yellow
+    Write-Log "Deploying session host for $($user.UPN)"
+
+    $paramArgs = @(
+        "--resource-group", $resourceGroup,
+        "--template-file", $bicepTemplateFile,
+        "--parameters",
+        "sessionHostPrefix=$sessionHostPrefix",
+        "userFirstName=$($user.FirstName)",
+        "userLastName=$($user.LastName)",
+        "userUPN=$($user.UPN)",
+        "adminUsername=$adminUsername",
+        "adminPassword=$adminPassword",
+        "hostPoolRegistrationInfoToken=$hostPoolRegistrationInfoToken",
+        "vNetResourceGroup=$vNetResourceGroup",
+        "vNetName=$vNetName",
+        "subnetName=$subnetName",
+        "dns1=$dns1",
+        "dns2=$dns2",
+        "sessionHostPrepScriptUrl=$sessionHostPrepScriptUrl"
+)
+
+    Write-Host "az deployment group create $((Mask-SensitiveArgs $paramArgs) -join ' ')" -ForegroundColor Gray
+    try {
+        az deployment group create @paramArgs
+        Write-Host "`nDeployment command executed for $($user.UPN)." -ForegroundColor Green
+        Write-Log "Deployment command executed for $($user.UPN) successfully"
+    } catch {
+        $errMsg = $_.Exception.Message
+        Write-Host ("Deployment command failed for {0}: {1}" -f $user.UPN, $errMsg) -ForegroundColor Red
+        Write-Log ("Deployment command failed for {0}: {1}" -f $user.UPN, $errMsg)
+    }
         }
     }
     Pause-With-Timeout

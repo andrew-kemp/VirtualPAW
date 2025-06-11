@@ -174,42 +174,59 @@ try {
 }
 
 #############################
-#                           #
 #   Resource Group Setup    #
-#                           #
 #############################
 Clear-Host
 Write-Banner "Resource Group Setup"
-Write-Host "Would you like to use an existing resource group, or create a new one?" -ForegroundColor Green
-Write-Host "1) Existing" -ForegroundColor Yellow
-Write-Host "2) New" -ForegroundColor Yellow
-$rgChoice = Read-Host
-if ($rgChoice -eq "1") {
-    $rgs = az group list --output json | ConvertFrom-Json
-    if (-not $rgs) {
-        Write-Host "No resource groups found. You must create a new one." -ForegroundColor Red
-        Write-Log "No resource groups found. Creating new one." "WARN"
-        $rgChoice = "2"
-    } else {
-        for ($i = 0; $i -lt $rgs.Count; $i++) { Write-Host "$($i+1)) $($rgs[$i].name)  ($($rgs[$i].location))" -ForegroundColor Cyan }
-        Write-Host "`nEnter the number of the resource group to use:" -ForegroundColor Green
-        $rgSelect = Read-Host
-        $resourceGroup = $rgs[$rgSelect - 1].name
-        $resourceGroupLocation = $rgs[$rgSelect - 1].location
-        Write-Host "Using resource group: $resourceGroup" -ForegroundColor Yellow
-        Write-Log "Using resource group: $resourceGroup ($resourceGroupLocation)"
+
+while ($true) {
+    Write-Host "Would you like to use an existing resource group, or create a new one?" -ForegroundColor Green
+    Write-Host "1) Existing" -ForegroundColor Yellow
+    Write-Host "2) New" -ForegroundColor Yellow
+    Write-Host "0) Go Back" -ForegroundColor Yellow
+    $rgChoice = Read-Host
+
+    if ($rgChoice -eq "0") {
+        Write-Host "Returning to previous menu..." -ForegroundColor Cyan
+        # Implement what "go back" means for your script here,
+        # such as breaking out to a previous function/menu.
+        break
     }
-}
-if ($rgChoice -eq "2") {
-    Write-Host "Enter a name for the new resource group:" -ForegroundColor Green
-    $resourceGroup = Read-Host
-    Write-Host "Enter the Azure region for the new resource group (e.g., uksouth, eastus):" -ForegroundColor Green
-    $resourceGroupLocation = Read-Host
-    Write-Host "Creating resource group $resourceGroup in $resourceGroupLocation..." -ForegroundColor Yellow
-    Write-Log "Creating resource group $resourceGroup in $resourceGroupLocation..."
-    az group create --name $resourceGroup --location $resourceGroupLocation | Out-Null
-    Write-Host "Resource group $resourceGroup created." -ForegroundColor Green
-    Write-Log "Resource group $resourceGroup created."
+
+    if ($rgChoice -eq "1") {
+        $rgs = az group list --output json | ConvertFrom-Json
+        if (-not $rgs) {
+            Write-Host "No resource groups found. You must create a new one." -ForegroundColor Red
+            Write-Log "No resource groups found. Creating new one." "WARN"
+            $rgChoice = "2"
+        } else {
+            for ($i = 0; $i -lt $rgs.Count; $i++) { Write-Host "$($i+1)) $($rgs[$i].name)  ($($rgs[$i].location))" -ForegroundColor Cyan }
+            Write-Host "0) Go Back" -ForegroundColor Yellow
+            Write-Host "`nEnter the number of the resource group to use:" -ForegroundColor Green
+            $rgSelect = Read-Host
+            if ($rgSelect -eq "0") { continue }
+            $resourceGroup = $rgs[$rgSelect - 1].name
+            $resourceGroupLocation = $rgs[$rgSelect - 1].location
+            Write-Host "Using resource group: $resourceGroup" -ForegroundColor Yellow
+            Write-Log "Using resource group: $resourceGroup ($resourceGroupLocation)"
+            break
+        }
+    }
+    if ($rgChoice -eq "2") {
+        Write-Host "Enter a name for the new resource group (or 0 to go back):" -ForegroundColor Green
+        $resourceGroup = Read-Host
+        if ($resourceGroup -eq "0") { continue }
+        Write-Host "Enter the Azure region for the new resource group (e.g., uksouth, eastus or 0 to go back):" -ForegroundColor Green
+        $resourceGroupLocation = Read-Host
+        if ($resourceGroupLocation -eq "0") { continue }
+        Write-Host "Creating resource group $resourceGroup in $resourceGroupLocation..." -ForegroundColor Yellow
+        Write-Log "Creating resource group $resourceGroup in $resourceGroupLocation..."
+        az group create --name $resourceGroup --location $resourceGroupLocation | Out-Null
+        Write-Host "Resource group $resourceGroup created." -ForegroundColor Green
+        Write-Log "Resource group $resourceGroup created."
+        break
+    }
+    Write-Host "Invalid selection. Please enter a valid option." -ForegroundColor Red
 }
 Write-Log "Resource group setup complete."
 Start-Sleep 1
@@ -418,6 +435,16 @@ $appGroupName        = "$DefaultPrefix-AppGroup"
 $vNetName            = "$DefaultPrefix-vNet"
 $subnetName          = "$DefaultPrefix-Subnet"
 
+# Detect and record Bicep files for both CoreInfra and SessionHost
+$allBicepFiles = Get-ChildItem -Path . -File | Where-Object { $_.Extension -eq ".bicep" -or $_.Extension -eq ".BICEP" }
+$coreInfraBicep = $bicepTemplateFile
+$sessionHostBicep = $allBicepFiles | Where-Object { $_.Name -ne $coreInfraBicep }
+if ($sessionHostBicep.Count -eq 1) {
+    $sessionHostBicepFile = $sessionHostBicep[0].Name
+} else {
+    $sessionHostBicepFile = ""
+}
+
 # Save parameters for reuse
 $vPAWConf = @{
     TenantId              = $tenantId
@@ -434,6 +461,8 @@ $vPAWConf = @{
     AdminsGroupId         = $adminGroup.Id
     AdminsGroupName       = $adminGroup.DisplayName
     BicepTemplateFile     = $bicepTemplateFile
+    CoreInfraBicep        = $coreInfraBicep
+    SessionHostBicep      = $sessionHostBicepFile
     HostPoolName          = $hostPoolName
     WorkspaceName         = $workspaceName
     AppGroupName          = $appGroupName
@@ -442,6 +471,7 @@ $vPAWConf = @{
     SavedAt               = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
 }
 $vPAWConfPath = Join-Path -Path $PSScriptRoot -ChildPath "vPAWConf.inf"
+
 $vPAWConf | ConvertTo-Json | Out-File -Encoding UTF8 -FilePath $vPAWConfPath
 Write-Host "`nAll parameters saved for later use in $vPAWConfPath" -ForegroundColor Green
 Write-Log "All parameters saved for later use in $vPAWConfPath"
@@ -487,8 +517,10 @@ Write-Host "-----------------------------" -ForegroundColor Magenta
 Write-Log "Deployment parameter summary displayed."
 
 Write-Host ""
-Write-Host "Would you like to deploy the selected Bicep template now? (y/n)" -ForegroundColor Green
+Write-Host "Would you like to deploy the selected Bicep template now? (y/n) [Default: y]" -ForegroundColor Green
 $deployNow = Read-Host
+if ([string]::IsNullOrWhiteSpace($deployNow)) { $deployNow = "y" }  # Default to "y" if Enter is pressed
+
 
 if ($deployNow -eq "y") {
     Write-Host "Starting deployment..." -ForegroundColor Yellow
@@ -566,6 +598,25 @@ function Ensure-RoleAssignment {
 Ensure-AzConnection
 Select-AzSubscription -SubscriptionId $chosenSub.id
 
+# --- Start: Resource Group RBAC Assignments ---
+$resourceGroupScope = "/subscriptions/$($chosenSub.id)/resourceGroups/$resourceGroup"
+
+# 1. Virtual Machine User Login for vPAW/AVD users group
+Ensure-RoleAssignment -ObjectId $userGroup.Id -RoleDefinitionName "Virtual Machine User Login" -Scope $resourceGroupScope
+
+# 2. Virtual Machine User Login for vPAW/AVD admins group
+Ensure-RoleAssignment -ObjectId $adminGroup.Id -RoleDefinitionName "Virtual Machine User Login" -Scope $resourceGroupScope
+
+# 3. Virtual Machine Administrator Login for vPAW/AVD admins group
+Ensure-RoleAssignment -ObjectId $adminGroup.Id -RoleDefinitionName "Virtual Machine Administrator Login" -Scope $resourceGroupScope
+
+# 4. Desktop Virtualization Power On Contributor for AVD Service Principal
+$avdServicePrincipal = Get-AzADServicePrincipal -DisplayName "Azure Virtual Desktop"
+if ($avdServicePrincipal) {
+    Ensure-RoleAssignment -ObjectId $avdServicePrincipal.Id -RoleDefinitionName "Desktop Virtualization Power On Contributor" -Scope $resourceGroupScope
+}
+# --- End: Resource Group RBAC Assignments ---
+
 Write-Host "Checking for WVD Application Group: $appGroupName in resource group: $resourceGroup" -ForegroundColor Yellow
 Write-Log "Checking for WVD Application Group: $appGroupName in resource group: $resourceGroup"
 $appGroup = Get-AzWvdApplicationGroup -Name $appGroupName -ResourceGroupName $resourceGroup -ErrorAction SilentlyContinue
@@ -580,6 +631,7 @@ $appGroupPath = $appGroup.Id
 $userGroupId = $userGroup.Id
 $adminGroupId = $adminGroup.Id
 
+# Assign Desktop Virtualization User at App Group scope
 Ensure-RoleAssignment -ObjectId $userGroupId -RoleDefinitionName "Desktop Virtualization User" -Scope $appGroupPath
 Ensure-RoleAssignment -ObjectId $adminGroupId -RoleDefinitionName "Desktop Virtualization User" -Scope $appGroupPath
 
@@ -735,8 +787,9 @@ Start-Sleep 1
 Clear-Host
 Write-Banner "vPAW Session Host Deployment (Opt)"
 Write-Host ""
-Write-Host "Would you like to deploy a vPAW session host? (y/n)" -ForegroundColor Green
+Write-Host "Would you like to deploy a vPAW session host? (y/n) [Default: y]" -ForegroundColor Green
 $deploySessionHost = Read-Host
+if ([string]::IsNullOrWhiteSpace($deploySessionHost)) { $deploySessionHost = "y" }
 
 if ($deploySessionHost -eq "n") {
     Write-Host "Deployment complete." -ForegroundColor Green
