@@ -980,26 +980,18 @@ function Select-SessionHostBicepFile {
     }
 }
 
+
 # Confirm Bicep file from inf, or prompt for selection
-$shouldUseInfFile = $false
 
-# Only use the session host Bicep file from the inf if it exists and is not a core infra file
-$sessionHostBicepFromInf = $null
-if ($sessionParams.SessionHostBicep) {
-    $sessionHostBicepFromInf = $sessionParams.SessionHostBicep
-} elseif ($sessionParams.BicepTemplateFile -and $sessionParams.BicepTemplateFile -like "*SessionHost*") {
-    $sessionHostBicepFromInf = $sessionParams.BicepTemplateFile
-}
-
-if ($sessionHostBicepFromInf -and (Test-Path $sessionHostBicepFromInf)) {
-    Write-Host "Using session host Bicep file from previous session: $sessionHostBicepFromInf" -ForegroundColor Green
-    $bicepTemplateFile = $sessionHostBicepFromInf
-    $shouldUseInfFile = $true
+# Always use SessionHostBicep from inf if it exists and is present on disk
+if ($sessionParams.SessionHostBicep -and (Test-Path $sessionParams.SessionHostBicep)) {
+    Write-Host "Using session host Bicep file from inf: $($sessionParams.SessionHostBicep)" -ForegroundColor Green
+    $bicepTemplateFile = $sessionParams.SessionHostBicep
     Write-Log "Auto-selected session host Bicep file from inf: $bicepTemplateFile"
 } else {
     $bicepTemplateFile = Select-SessionHostBicepFile
-    $sessionParams.BicepTemplateFile = $bicepTemplateFile
-    Write-Log "User selected Bicep file: $bicepTemplateFile"
+    $sessionParams.SessionHostBicep = $bicepTemplateFile
+    Write-Log "User selected session host Bicep file: $bicepTemplateFile"
 }
 Clear-Host
 
@@ -1061,7 +1053,17 @@ if ($skipPrompts -and $missing.Count -eq 0) {
     $vPAWUsersGroupObjectId = $sessionParams.vPAWUsersGroupObjectId
     $vPAWAdminsGroupDisplayName = $sessionParams.vPAWAdminsGroupDisplayName
     $vPAWAdminsGroupObjectId = $sessionParams.vPAWAdminsGroupObjectId
-    $bicepTemplateFile = $sessionParams.BicepTemplateFile
+
+    # Always use SessionHostBicep for session host deployment
+    if ($sessionParams.SessionHostBicep -and (Test-Path $sessionParams.SessionHostBicep)) {
+        $bicepTemplateFile = $sessionParams.SessionHostBicep
+        Write-Host "Using session host Bicep file from inf: $bicepTemplateFile" -ForegroundColor Green
+        Write-Log "Auto-selected session host Bicep file from inf: $bicepTemplateFile"
+    } else {
+        $bicepTemplateFile = Select-SessionHostBicepFile
+        $sessionParams.SessionHostBicep = $bicepTemplateFile
+        Write-Log "User selected session host Bicep file: $bicepTemplateFile"
+    }
 
     # Set Az PowerShell context to chosen subscription
     Ensure-AzConnection -SubscriptionId $chosenSub.id
@@ -1219,7 +1221,20 @@ for ($i = 1; $i -le $hostCount; $i++) {
     $firstName = Prompt-RequiredParam "Enter the first name of the user (userFirstName): "
     $lastName = Prompt-RequiredParam "Enter the last name of the user (userLastName): "
     $upn = Prompt-RequiredParam "Enter the user's UPN (userUPN): "
-    $userDetails += [PSCustomObject]@{ FirstName = $firstName; LastName = $lastName; UPN = $upn }
+    Write-Host "Is the email address the same as the UPN? (y/n) [Default: n]" -ForegroundColor Green -NoNewline
+    $sameEmail = Read-Host
+    if ([string]::IsNullOrWhiteSpace($sameEmail) -or $sameEmail -eq "n") {
+        $emailaddress = Prompt-RequiredParam "Enter the user's email address: "
+    } else {
+        $emailaddress = $upn
+        
+    }
+    $userDetails += [PSCustomObject]@{
+        FirstName = $firstName
+        LastName = $lastName
+        UPN = $upn
+        EmailAddress = $emailaddress
+    }
 }
 Clear-Host
 
@@ -1476,9 +1491,9 @@ foreach ($user in $userDetails) {
     Write-Banner "Configure VM Auto-Shutdown"
     foreach ($user in $userDetails) {
         $vmName = "$sessionHostPrefix-$($user.FirstName)$($user.LastName)"
-        $upn = $user.UPN
-        Write-Host "Setting auto-shutdown for VM: $vmName (Notify: $upn)" -ForegroundColor Yellow
-        az vm auto-shutdown --resource-group $resourceGroup --name $vmName --time 1800 --email $upn 2>&1 | Write-Host
+     $emailaddress = $user.EmailAddress
+     Write-Host "Setting auto-shutdown for VM: $vmName (Notify: $emailaddress)" -ForegroundColor Yellow
+        az vm auto-shutdown --resource-group $resourceGroup --name $vmName --time 1800 --email $emailaddress 2>&1 | Write-Host
     }
     Pause-With-Timeout
 

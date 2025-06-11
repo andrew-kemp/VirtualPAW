@@ -219,3 +219,81 @@
 2025-06-11 20:06:42 [INFO] User chose to reuse previous session config: y
 2025-06-11 20:06:42 [INFO] Auto-selected session host Bicep file from inf: vPAW-Deploy-SessionHost.bicep
 2025-06-11 20:06:42 [INFO] Checking modules and authenticating services
+2025-06-11 20:10:07 [INFO] Using settings from vPAWconf.inf: Subscription=MCT Subscription, ResourceGroup=vPAW, ...
+2025-06-11 20:10:20 [INFO] Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-11 20:10:30 [INFO] Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-11 20:10:44 [INFO] Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-11 20:10:46 [INFO] Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-11 20:10:54 [INFO] Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-11 20:10:54 [INFO] Admin credentials entered (password not logged)
+2025-06-11 20:10:57 [INFO] Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-11 20:10:57 [INFO] Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-11 20:11:02 [INFO] Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-11 20:11:05 [INFO] Registration key generated (expires 06/12/2025 19:11:02)
+2025-06-11 20:11:05 [INFO] Summary displayed
+2025-06-11 20:11:30 [INFO] User chose to deploy: y
+2025-06-11 20:11:32 [INFO] Deploying session host for adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-11 20:11:38 [INFO] Deployment command executed for adm_andrew.kemp@kempy.onmicrosoft.com successfully
+2025-06-11 20:11:48 [INFO] Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndrewKemp using Update-AzWvdSessionHost
+2025-06-11 20:11:59 [INFO] adm_andrew.kemp@kempy.onmicrosoft.com already in _Grp-vPAW-Users (12573206-bbc0-498d-b12d-7b5053ea63de)
+2025-06-11 20:19:34 [INFO] Loaded previous session config from vPAWconf.inf
+2025-06-11 20:19:37 [INFO] User chose to reuse previous session config: y
+2025-06-11 20:19:37 [INFO] Auto-selected session host Bicep file from inf: vPAW-Deploy-SessionHost.bicep
+2025-06-11 20:19:37 [INFO] Checking modules and authenticating services
+2025-06-11 20:20:27 [INFO] Using settings from vPAWconf.inf: Subscription=MCT Subscription, ResourceGroup=vPAW, ...
+2025-06-11 20:20:37 [INFO] Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-11 20:20:38 [INFO] Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-11 20:20:50 [INFO] Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-11 20:21:04 [INFO] Prompted: Enter the user's email address:  Value: andrew@kemponline.co.uk
+2025-06-11 20:21:07 [INFO] Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-11 20:21:14 [INFO] Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-11 20:21:14 [INFO] Admin credentials entered (password not logged)
+2025-06-11 20:21:16 [INFO] Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-11 20:21:16 [INFO] Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-11 20:21:16 [INFO] Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-11 20:21:18 [INFO] Registration key generated (expires 06/12/2025 19:21:16)
+2025-06-11 20:21:18 [INFO] Summary displayed
+2025-06-11 20:21:34 [INFO] User chose to deploy: y
+2025-06-11 20:21:36 [INFO] Deploying session host for adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-11 20:21:41 [INFO] Deployment command executed for adm_andrew.kemp@kempy.onmicrosoft.com successfully
+2025-06-11 20:21:52 [INFO] Assigned adm_andrew.kemp@kempy.onmicrosoft.com to session host vPAW-AndrewKemp using Update-AzWvdSessionHost
+2025-06-11 20:22:02 [INFO] adm_andrew.kemp@kempy.onmicrosoft.com already in _Grp-vPAW-Users (12573206-bbc0-498d-b12d-7b5053ea63de)
+2025-06-11 20:27:13 [INFO] Loaded previous session config from vPAWconf.inf
+2025-06-11 20:27:16 [INFO] User chose to reuse previous session config: y
+2025-06-11 20:27:16 [INFO] Auto-selected session host Bicep file from inf: vPAW-Deploy-SessionHost.bicep
+2025-06-11 20:27:16 [INFO] Checking modules and authenticating services
+2025-06-11 20:28:09 [INFO] Using settings from vPAWconf.inf: Subscription=MCT Subscription, ResourceGroup=vPAW, ...
+2025-06-11 20:28:15 [INFO] Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-11 20:28:16 [INFO] Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-11 20:28:26 [INFO] Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-11 20:28:46 [INFO] Prompted: Enter the user's email address:  Value: andrew@kemponline.co.uk
+2025-06-11 20:28:56 [INFO] Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-11 20:29:04 [INFO] Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-11 20:29:04 [INFO] Admin credentials entered (password not logged)
+2025-06-11 20:29:05 [INFO] Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-11 20:29:05 [INFO] Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-11 20:29:06 [INFO] Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-11 20:29:09 [INFO] Registration key generated (expires 06/12/2025 19:29:06)
+2025-06-11 20:29:09 [INFO] Summary displayed
+2025-06-11 20:29:27 [INFO] User chose to deploy: y
+2025-06-11 20:29:28 [INFO] Deploying session host for adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-11 20:33:39 [INFO] Loaded previous session config from vPAWconf.inf
+2025-06-11 20:33:51 [INFO] User chose to reuse previous session config: y
+2025-06-11 20:33:51 [INFO] Auto-selected session host Bicep file from inf: vPAW-Deploy-SessionHost.bicep
+2025-06-11 20:33:51 [INFO] Checking modules and authenticating services
+2025-06-11 20:34:41 [INFO] Auto-selected session host Bicep file from inf: vPAW-Deploy-SessionHost.bicep
+2025-06-11 20:34:41 [INFO] Using settings from vPAWconf.inf: Subscription=MCT Subscription, ResourceGroup=vPAW, ...
+2025-06-11 20:35:11 [INFO] Prompted: Enter the first name of the user (userFirstName):  Value: Andrew
+2025-06-11 20:35:23 [INFO] Prompted: Enter the last name of the user (userLastName):  Value: Kemp
+2025-06-11 20:35:59 [INFO] Prompted: Enter the user's UPN (userUPN):  Value: adm_andrew.kemp@kempy.onmicrosoft.com
+2025-06-11 20:36:09 [INFO] Prompted: Enter the user's email address:  Value: andrew@kemponline.co.uk
+2025-06-11 20:36:30 [INFO] Prompted: Enter the admin username for the session host (adminUsername) Value: VPAW-Admin
+2025-06-11 20:36:37 [INFO] Prompted: Enter the admin password for the session host (input hidden):  Value: [hidden]
+2025-06-11 20:36:37 [INFO] Admin credentials entered (password not logged)
+2025-06-11 20:36:40 [INFO] Prompted: Enter the primary DNS server (dns1, leave blank for default) Value: 
+2025-06-11 20:36:40 [INFO] Prompted: Enter the secondary DNS server (dns2, leave blank for default) Value: 
+2025-06-11 20:36:41 [INFO] Prompted: Enter the SessionHostPrep.ps1 script URL (sessionHostPrepScriptUrl) Value: https://raw.githubusercontent.com/andrew-kemp/CloudPAW/refs/heads/main/SessionHostPrep.ps1
+2025-06-11 20:36:43 [INFO] Registration key generated (expires 06/12/2025 19:36:41)
+2025-06-11 20:36:43 [INFO] Summary displayed
+2025-06-11 20:36:56 [INFO] User chose to deploy: y
+2025-06-11 20:36:57 [INFO] Deploying session host for adm_andrew.kemp@kempy.onmicrosoft.com
